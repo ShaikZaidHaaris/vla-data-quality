@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Data Screen · check a demonstration set before you train</title>
-<meta name="description" content="Upload robot demonstration trajectories and get a pass or fail against thresholds measured from data that trains a working policy.">
+<title>Pipeline · screen, train, diagnose, fix, re-measure</title>
+<meta name="description" content="Walk a demonstration set through the whole loop: screen it locally, then see the measured evaluation, diagnosis, fix and result.">
 <meta name="color-scheme" content="dark light">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔬</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#128300;</text></svg>">
 <style>
+
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0E1116;--panel:#161A21;--panel-2:#1C212A;--line:#262C36;--line-soft:#1E242D;
@@ -52,7 +53,6 @@ button:hover{border-color:var(--signal);color:var(--signal)}
 button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
 .spec{font-family:var(--mono);font-size:11.5px;color:var(--dim);line-height:1.75}
 .spec code{color:var(--text)}
-#out{margin-top:30px;display:none}
 .verdict{border:1px solid var(--line);background:var(--panel);padding:22px 24px;margin-bottom:18px}
 .verdict .vt{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--dim);margin-bottom:10px}
@@ -72,6 +72,58 @@ td:first-child{text-align:left;font-family:var(--sans);font-size:13px}
 .note{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:22px;line-height:1.7;
   border-top:1px solid var(--line);padding-top:18px}
 .err{color:var(--bad);font-family:var(--mono);font-size:12px;margin-top:12px}
+
+/* ---- pipeline additions ---- */
+.rail{display:flex;gap:0;margin:26px 0 30px;border:1px solid var(--line);background:var(--panel);
+  overflow-x:auto}
+.rs{flex:1 1 0;min-width:132px;padding:11px 13px;font-family:var(--mono);font-size:11.5px;
+  color:var(--dimmer);border-right:1px solid var(--line);white-space:nowrap;
+  transition:color .25s,background .25s}
+.rs:last-child{border-right:0}
+.rs b{color:inherit;font-weight:700;margin-right:7px}
+.rs.on{color:var(--text);background:var(--panel-2)}
+.rs.on b{color:var(--signal)}
+.rs.now{background:var(--signal-soft)}
+.or{font-family:var(--mono);font-size:11px;color:var(--dimmer);text-align:center;margin:16px 0 12px;
+  letter-spacing:.14em;text-transform:uppercase}
+.drop .small a{color:var(--signal)}
+.stage{margin-top:38px;opacity:0;transform:translateY(10px);display:none}
+.stage.vis{display:block;animation:rise .45s ease forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.stage.vis{animation:none;opacity:1;transform:none}}
+.sh{display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.sh h2{margin:0;font-size:17px;letter-spacing:-.015em}
+.sn{font-family:var(--mono);font-size:11px;color:var(--signal);letter-spacing:.14em}
+.prov{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 8px;border:1px solid currentColor;border-radius:2px}
+.prov.live{color:var(--ok)} .prov.meas{color:var(--dim)}
+.next{margin-top:16px;padding:10px 18px;font-size:12.5px;border-color:var(--signal);color:var(--signal);
+  background:transparent}
+.next:hover{background:var(--signal-soft)}
+.runline{font-family:var(--mono);font-size:12px;color:var(--dim);border-bottom:1px solid var(--line-soft);
+  padding-bottom:14px;margin-bottom:16px;line-height:1.9}
+.runline b{color:var(--text)}
+.runline .tick{color:var(--ok)}
+.runline .tick::before{content:"\2713 ";}
+.runline .sep{color:var(--dimmer);margin:0 8px}
+.statrow{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media (max-width:700px){.statrow{grid-template-columns:repeat(2,1fr)}}
+.st{border-left:2px solid var(--line);padding-left:12px}
+.stl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.stv{font-family:var(--mono);font-size:21px;font-weight:700;margin-top:4px;letter-spacing:-.02em}
+.stc{font-family:var(--mono);font-size:10.5px;color:var(--dimmer);margin-top:2px}
+figure{margin:20px 0 0}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:10px;line-height:1.7}
+.note-p{font-size:14.5px;color:var(--text);max-width:72ch}
+.pres{margin-top:22px;border-top:1px solid var(--line-soft);padding-top:18px}
+.pt{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--signal);margin-bottom:8px}
+.pres p,#fixcard p,#rescard p{font-size:14.5px;max-width:72ch;color:var(--dim)}
+.pres p b,#fixcard p b,#rescard p b{color:var(--text)}
+.fig{color:var(--signal)}
+.xnote{border-left:2px solid var(--signal);background:var(--signal-soft);padding:11px 14px;
+  margin-bottom:20px;font-size:13.5px;color:var(--text);max-width:74ch}
 </style>
 </head>
 <body>
@@ -79,203 +131,335 @@ td:first-child{text-align:left;font-family:var(--sans);font-size:13px}
   <nav class="nav">
     <a class="brand" href="index.html">Data Quality for VLA Fine-Tuning</a>
     <a href="index.html">Report</a>
+    <a href="demo.html" aria-current="page">Pipeline</a>
     <a href="https://github.com/ShaikZaidHaaris/vla-data-quality">Source</a>
   </nav>
 
   <header>
-    <div class="kicker">Runs in your browser · no upload leaves this page</div>
-    <h1>Check a demonstration set before you train on it</h1>
+    <div class="kicker">Screen runs live in your browser · later stages replay measured runs</div>
+    <h1>Run the whole loop</h1>
     <p class="standfirst">
-      Six statistics separate demonstration data that trains a working policy from data that
-      does not. All six are measurable in seconds, with no GPU and no training run. Drop in a
-      set of trajectories and see where it stands.
+      Screen a demonstration set, train and evaluate it, read where the policy breaks, apply the
+      fix that diagnosis implies, then measure whether it worked. Pick a dataset or drop in your
+      own trajectories.
     </p>
   </header>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Your data</h2>
-      <div class="drop" id="drop" role="button" tabindex="0" aria-label="Upload a CSV of trajectories">
-        <div class="big">Drop a CSV here, or click to choose</div>
-        <div class="small">nothing is uploaded, parsing happens locally</div>
-      </div>
-      <input type="file" id="file" accept=".csv" hidden>
-      <div id="err" class="err"></div>
-      <div style="margin-top:16px">
-        <h2>Or screen one from the study</h2>
-        <div class="presets">
-          <button data-p="ph">PH, one expert</button>
-          <button data-p="mh">MH, six operators</button>
-          <button data-p="mg">MG, an RL agent</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Expected format</h2>
-      <p class="spec">
-        One row per timestep, with a header line:<br><br>
-        <code>episode,step,eef_x,eef_y,eef_z,gripper,success</code><br><br>
-        <b>episode</b> groups rows into demonstrations.<br>
-        <b>eef_x/y/z</b> is the gripper position in metres.<br>
-        <b>gripper</b> is the command, positive means closing.<br>
-        <b>success</b> is 1 if that demonstration finished the task.<br><br>
-        <a href="sample_trajectories.csv" download style="color:var(--signal)">Download a sample file</a>
-      </p>
-    </div>
+  <div class="rail" id="rail">
+    <div class="rs" data-s="1"><b>1</b> Screen</div>
+    <div class="rs" data-s="2"><b>2</b> Train and evaluate</div>
+    <div class="rs" data-s="3"><b>3</b> Diagnose</div>
+    <div class="rs" data-s="4"><b>4</b> Apply the fix</div>
+    <div class="rs" data-s="5"><b>5</b> Re-measure</div>
   </div>
 
-  <div id="out">
-    <div class="verdict">
-      <div class="vt">Verdict</div>
-      <div class="vv" id="vv"></div>
-      <div class="vs" id="vs"></div>
+  <!-- ============ input ============ -->
+  <section class="card" id="pick">
+    <h2>Choose a demonstration set</h2>
+    <div class="presets">
+      <button data-p="ph">PH, one expert</button>
+      <button data-p="mh">MH, six operators</button>
+      <button data-p="mg">MG, an RL agent</button>
     </div>
+    <div class="or">or</div>
+    <div class="drop" id="drop" role="button" tabindex="0">
+      <div class="big">Drop a CSV of trajectories here</div>
+      <div class="small">parsed locally, nothing is uploaded
+        · <a href="sample_trajectories.csv" download>sample file</a></div>
+    </div>
+    <div id="err" class="err"></div>
+    <p class="spec">
+      Columns: <code>episode,step,eef_x,eef_y,eef_z,gripper,success</code>
+    </p>
+  </section>
+
+  <!-- ============ 1 screen ============ -->
+  <section class="stage" id="s1">
+    <div class="sh"><span class="sn">01</span><h2 id="s1t">Screen</h2>
+      <span class="prov live">computed live</span></div>
     <div class="card">
-      <h2 id="sumtitle">Screen results</h2>
       <div style="overflow-x:auto">
-      <table>
-        <thead><tr><th>Statistic</th><th>Your data</th><th>Target</th><th>Distance</th><th></th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
+        <table><thead><tr><th>Statistic</th><th>Value</th><th>Target</th><th></th><th></th></tr></thead>
+        <tbody id="rows"></tbody></table>
       </div>
+      <div class="verdict" id="v1"></div>
     </div>
-  </div>
+    <button class="next" data-go="2">Train and evaluate this data →</button>
+  </section>
+
+  <!-- ============ 2 eval ============ -->
+  <section class="stage" id="s2">
+    <div class="sh"><span class="sn">02</span><h2>Train and evaluate</h2>
+      <span class="prov meas">measured, n = 100</span></div>
+    <div class="card">
+      <div class="runline" id="run2"></div>
+      <div class="statrow" id="ev"></div>
+      <figure><svg viewBox="0 0 620 96" id="evbar"></svg>
+        <figcaption id="evcap"></figcaption></figure>
+    </div>
+    <button class="next" data-go="3">Find out where it breaks →</button>
+  </section>
+
+  <!-- ============ 3 diagnose ============ -->
+  <section class="stage" id="s3">
+    <div class="sh"><span class="sn">03</span><h2>Diagnose</h2>
+      <span class="prov meas">measured</span></div>
+    <div class="card">
+      <p class="note-p" id="diagtext"></p>
+      <figure><svg viewBox="0 0 620 150" id="funnel"></svg>
+        <figcaption>Each bar is the chance of clearing that step, given the one before it.</figcaption></figure>
+      <div class="pres" id="pres"></div>
+    </div>
+    <button class="next" data-go="4">Apply the fix →</button>
+  </section>
+
+  <!-- ============ 4 intervene ============ -->
+  <section class="stage" id="s4">
+    <div class="sh"><span class="sn">04</span><h2>Apply the fix</h2>
+      <span class="prov meas" id="p4">measured</span></div>
+    <div class="card" id="fixcard"></div>
+    <button class="next" data-go="5">Measure the result →</button>
+  </section>
+
+  <!-- ============ 5 result ============ -->
+  <section class="stage" id="s5">
+    <div class="sh"><span class="sn">05</span><h2>Re-measure</h2>
+      <span class="prov meas" id="p5">measured</span></div>
+    <div class="card" id="rescard"></div>
+    <button class="next" id="again">Run another dataset ↻</button>
+  </section>
 
   <p class="note">
-    Thresholds come from PH, the corpus that trains the best policy in the study.
-    This screen looks at the demonstrations only. It does not train or evaluate a policy,
-    so it tells you whether data is worth training on, not what score it will reach.
+    Stage 1 computes from the file in front of you. Stages 2 to 5 replay runs already carried out
+    on an L4, because fine-tuning a 3B policy takes GPU hours and cannot happen in a browser.
+    Every number shown was measured, and all of them are in
+    <a href="https://github.com/ShaikZaidHaaris/vla-data-quality/tree/main/data">the repository</a>.
   </p>
 </div>
-
 <script>
-const PRESETS = {"ph":[{"n":59,"ok":1,"tr":1,"jerk":0.0416,"peff":0.5188,"tcl":0.7458},{"n":58,"ok":1,"tr":1,"jerk":0.0322,"peff":0.5172,"tcl":0.7586},{"n":54,"ok":1,"tr":1,"jerk":0.0332,"peff":0.5479,"tcl":0.7593},{"n":47,"ok":1,"tr":1,"jerk":0.0578,"peff":0.5322,"tcl":0.7234},{"n":43,"ok":1,"tr":1,"jerk":0.0416,"peff":0.5508,"tcl":0.6977},{"n":58,"ok":1,"tr":1,"jerk":0.0352,"peff":0.5412,"tcl":0.7759},{"n":52,"ok":1,"tr":1,"jerk":0.0397,"peff":0.6124,"tcl":0.6154},{"n":48,"ok":1,"tr":1,"jerk":0.0406,"peff":0.549,"tcl":0.7292},{"n":55,"ok":1,"tr":1,"jerk":0.0413,"peff":0.4416,"tcl":0.7636},{"n":49,"ok":1,"tr":1,"jerk":0.0347,"peff":0.5616,"tcl":0.7551},{"n":62,"ok":1,"tr":1,"jerk":0.0344,"peff":0.4892,"tcl":0.7742},{"n":43,"ok":1,"tr":1,"jerk":0.044,"peff":0.5525,"tcl":0.7209},{"n":50,"ok":1,"tr":1,"jerk":0.0514,"peff":0.5437,"tcl":0.72},{"n":49,"ok":1,"tr":1,"jerk":0.0449,"peff":0.5482,"tcl":0.6531},{"n":45,"ok":1,"tr":1,"jerk":0.0458,"peff":0.5507,"tcl":0.6667},{"n":46,"ok":1,"tr":1,"jerk":0.0377,"peff":0.5719,"tcl":0.6957},{"n":44,"ok":1,"tr":1,"jerk":0.0445,"peff":0.5551,"tcl":0.6818},{"n":43,"ok":1,"tr":1,"jerk":0.0491,"peff":0.6086,"tcl":0.6977},{"n":47,"ok":1,"tr":1,"jerk":0.0376,"peff":0.5073,"tcl":0.7234},{"n":49,"ok":1,"tr":1,"jerk":0.0388,"peff":0.5625,"tcl":0.6939},{"n":59,"ok":1,"tr":1,"jerk":0.036,"peff":0.5236,"tcl":0.7627},{"n":52,"ok":1,"tr":1,"jerk":0.0358,"peff":0.5111,"tcl":0.6923},{"n":54,"ok":1,"tr":1,"jerk":0.0384,"peff":0.5658,"tcl":0.7407},{"n":53,"ok":1,"tr":1,"jerk":0.0359,"peff":0.5355,"tcl":0.7547},{"n":53,"ok":1,"tr":1,"jerk":0.0436,"peff":0.6353,"tcl":0.717},{"n":63,"ok":1,"tr":1,"jerk":0.0318,"peff":0.5545,"tcl":0.7302},{"n":53,"ok":1,"tr":1,"jerk":0.0404,"peff":0.5191,"tcl":0.6981},{"n":60,"ok":1,"tr":1,"jerk":0.0318,"peff":0.5345,"tcl":0.7667},{"n":51,"ok":1,"tr":1,"jerk":0.038,"peff":0.5782,"tcl":0.7451},{"n":47,"ok":1,"tr":1,"jerk":0.0389,"peff":0.5434,"tcl":0.6809},{"n":55,"ok":1,"tr":1,"jerk":0.054,"peff":0.5263,"tcl":0.7455},{"n":56,"ok":1,"tr":1,"jerk":0.0318,"peff":0.5543,"tcl":0.75},{"n":58,"ok":1,"tr":1,"jerk":0.0384,"peff":0.5206,"tcl":0.7586},{"n":55,"ok":1,"tr":1,"jerk":0.039,"peff":0.6257,"tcl":0.6909},{"n":53,"ok":1,"tr":1,"jerk":0.0368,"peff":0.5318,"tcl":0.717},{"n":59,"ok":1,"tr":1,"jerk":0.031,"peff":0.5352,"tcl":0.7288},{"n":50,"ok":1,"tr":1,"jerk":0.0452,"peff":0.5679,"tcl":0.74},{"n":47,"ok":1,"tr":1,"jerk":0.0391,"peff":0.5375,"tcl":0.7234},{"n":46,"ok":1,"tr":1,"jerk":0.0379,"peff":0.4761,"tcl":0.6957},{"n":43,"ok":1,"tr":1,"jerk":0.0478,"peff":0.5249,"tcl":0.7209},{"n":45,"ok":1,"tr":1,"jerk":0.0441,"peff":0.5352,"tcl":0.7111},{"n":54,"ok":1,"tr":1,"jerk":0.0451,"peff":0.4979,"tcl":0.7778},{"n":53,"ok":1,"tr":1,"jerk":0.0374,"peff":0.5174,"tcl":0.7547},{"n":57,"ok":1,"tr":1,"jerk":0.0375,"peff":0.4843,"tcl":0.7544},{"n":50,"ok":1,"tr":1,"jerk":0.0434,"peff":0.5558,"tcl":0.74},{"n":48,"ok":1,"tr":1,"jerk":0.0508,"peff":0.5206,"tcl":0.7292},{"n":51,"ok":1,"tr":1,"jerk":0.0399,"peff":0.5011,"tcl":0.6667},{"n":49,"ok":1,"tr":1,"jerk":0.0433,"peff":0.4979,"tcl":0.7551},{"n":54,"ok":1,"tr":1,"jerk":0.038,"peff":0.5046,"tcl":0.7407},{"n":55,"ok":1,"tr":1,"jerk":0.0424,"peff":0.4683,"tcl":0.7273},{"n":49,"ok":1,"tr":1,"jerk":0.0337,"peff":0.4969,"tcl":0.7347},{"n":51,"ok":1,"tr":1,"jerk":0.0411,"peff":0.5133,"tcl":0.7255},{"n":45,"ok":1,"tr":1,"jerk":0.0397,"peff":0.6114,"tcl":0.7111},{"n":50,"ok":1,"tr":1,"jerk":0.036,"peff":0.5136,"tcl":0.72},{"n":51,"ok":1,"tr":1,"jerk":0.0496,"peff":0.5594,"tcl":0.7255},{"n":50,"ok":1,"tr":1,"jerk":0.0387,"peff":0.4949,"tcl":0.7},{"n":58,"ok":1,"tr":1,"jerk":0.0336,"peff":0.545,"tcl":0.7586},{"n":50,"ok":1,"tr":1,"jerk":0.0416,"peff":0.5799,"tcl":0.64},{"n":46,"ok":1,"tr":1,"jerk":0.038,"peff":0.5407,"tcl":0.7174},{"n":46,"ok":1,"tr":1,"jerk":0.0364,"peff":0.5175,"tcl":0.6087},{"n":45,"ok":1,"tr":1,"jerk":0.0368,"peff":0.5579,"tcl":0.7111},{"n":42,"ok":1,"tr":1,"jerk":0.0416,"peff":0.5253,"tcl":0.6905},{"n":49,"ok":1,"tr":1,"jerk":0.0418,"peff":0.5082,"tcl":0.7347},{"n":45,"ok":1,"tr":1,"jerk":0.0469,"peff":0.5119,"tcl":0.7111},{"n":63,"ok":1,"tr":1,"jerk":0.1065,"peff":0.4849,"tcl":0.746},{"n":41,"ok":1,"tr":1,"jerk":0.0467,"peff":0.5472,"tcl":0.6829},{"n":42,"ok":1,"tr":1,"jerk":0.0466,"peff":0.4395,"tcl":0.6905},{"n":45,"ok":1,"tr":1,"jerk":0.0427,"peff":0.4629,"tcl":0.7333},{"n":50,"ok":1,"tr":1,"jerk":0.0394,"peff":0.583,"tcl":0.68},{"n":43,"ok":1,"tr":1,"jerk":0.0386,"peff":0.5024,"tcl":0.7209},{"n":46,"ok":1,"tr":1,"jerk":0.0467,"peff":0.5121,"tcl":0.6957},{"n":52,"ok":1,"tr":1,"jerk":0.0486,"peff":0.5279,"tcl":0.6346},{"n":55,"ok":1,"tr":1,"jerk":0.0383,"peff":0.5345,"tcl":0.7636},{"n":44,"ok":1,"tr":1,"jerk":0.0493,"peff":0.5588,"tcl":0.7045},{"n":42,"ok":1,"tr":1,"jerk":0.0529,"peff":0.541,"tcl":0.7143},{"n":51,"ok":1,"tr":1,"jerk":0.0436,"peff":0.5374,"tcl":0.7059},{"n":64,"ok":1,"tr":1,"jerk":0.0369,"peff":0.4765,"tcl":0.7656},{"n":57,"ok":1,"tr":1,"jerk":0.0332,"peff":0.5598,"tcl":0.7544},{"n":52,"ok":1,"tr":1,"jerk":0.046,"peff":0.5284,"tcl":0.75},{"n":45,"ok":1,"tr":1,"jerk":0.0423,"peff":0.4806,"tcl":0.6444},{"n":48,"ok":1,"tr":1,"jerk":0.0378,"peff":0.5147,"tcl":0.7292},{"n":45,"ok":1,"tr":1,"jerk":0.0425,"peff":0.567,"tcl":0.7111},{"n":53,"ok":1,"tr":1,"jerk":0.0365,"peff":0.5591,"tcl":0.7358},{"n":39,"ok":1,"tr":1,"jerk":0.0405,"peff":0.5112,"tcl":0.6923},{"n":47,"ok":1,"tr":1,"jerk":0.0388,"peff":0.5185,"tcl":0.7021},{"n":52,"ok":1,"tr":1,"jerk":0.0493,"peff":0.5045,"tcl":0.75},{"n":63,"ok":1,"tr":1,"jerk":0.0318,"peff":0.4999,"tcl":0.7619},{"n":50,"ok":1,"tr":1,"jerk":0.0378,"peff":0.4924,"tcl":0.74},{"n":47,"ok":1,"tr":1,"jerk":0.0403,"peff":0.5181,"tcl":0.7234},{"n":48,"ok":1,"tr":1,"jerk":0.0347,"peff":0.5343,"tcl":0.7083},{"n":49,"ok":1,"tr":1,"jerk":0.0405,"peff":0.5296,"tcl":0.6939},{"n":55,"ok":1,"tr":1,"jerk":0.0357,"peff":0.5716,"tcl":0.7455},{"n":52,"ok":1,"tr":1,"jerk":0.0365,"peff":0.4297,"tcl":0.75},{"n":55,"ok":1,"tr":1,"jerk":0.0474,"peff":0.5699,"tcl":0.7273},{"n":53,"ok":1,"tr":1,"jerk":0.037,"peff":0.5558,"tcl":0.717},{"n":44,"ok":1,"tr":1,"jerk":0.0409,"peff":0.5502,"tcl":0.6591},{"n":59,"ok":1,"tr":1,"jerk":0.043,"peff":0.5128,"tcl":0.7966},{"n":45,"ok":1,"tr":1,"jerk":0.0395,"peff":0.478,"tcl":0.6889},{"n":43,"ok":1,"tr":1,"jerk":0.0457,"peff":0.5953,"tcl":0.6744},{"n":44,"ok":1,"tr":1,"jerk":0.0428,"peff":0.5368,"tcl":0.6364},{"n":52,"ok":1,"tr":1,"jerk":0.0434,"peff":0.5684,"tcl":0.6731},{"n":51,"ok":1,"tr":1,"jerk":0.0348,"peff":0.5285,"tcl":0.7451},{"n":51,"ok":1,"tr":1,"jerk":0.0448,"peff":0.5194,"tcl":0.7451},{"n":40,"ok":1,"tr":1,"jerk":0.039,"peff":0.502,"tcl":0.65},{"n":49,"ok":1,"tr":1,"jerk":0.0679,"peff":0.5423,"tcl":0.6939},{"n":42,"ok":1,"tr":1,"jerk":0.0579,"peff":0.5205,"tcl":0.7143},{"n":36,"ok":1,"tr":1,"jerk":0.0635,"peff":0.5293,"tcl":0.6389},{"n":54,"ok":1,"tr":1,"jerk":0.0536,"peff":0.4523,"tcl":0.7407},{"n":42,"ok":1,"tr":1,"jerk":0.05,"peff":0.473,"tcl":0.619},{"n":40,"ok":1,"tr":1,"jerk":0.0435,"peff":0.5139,"tcl":0.625},{"n":45,"ok":1,"tr":1,"jerk":0.0378,"peff":0.4199,"tcl":0.7333},{"n":49,"ok":1,"tr":1,"jerk":0.0447,"peff":0.5373,"tcl":0.6531},{"n":57,"ok":1,"tr":1,"jerk":0.0346,"peff":0.5524,"tcl":0.7368},{"n":48,"ok":1,"tr":1,"jerk":0.041,"peff":0.5355,"tcl":0.6667},{"n":57,"ok":1,"tr":1,"jerk":0.0358,"peff":0.4659,"tcl":0.7719},{"n":47,"ok":1,"tr":1,"jerk":0.0347,"peff":0.4981,"tcl":0.6809},{"n":47,"ok":1,"tr":1,"jerk":0.0396,"peff":0.492,"tcl":0.6596},{"n":52,"ok":1,"tr":1,"jerk":0.0361,"peff":0.5416,"tcl":0.6731},{"n":48,"ok":1,"tr":1,"jerk":0.0397,"peff":0.467,"tcl":0.6667},{"n":43,"ok":1,"tr":1,"jerk":0.0394,"peff":0.5601,"tcl":0.6744},{"n":46,"ok":1,"tr":1,"jerk":0.04,"peff":0.5633,"tcl":0.6957},{"n":49,"ok":1,"tr":1,"jerk":0.0371,"peff":0.5365,"tcl":0.6531},{"n":41,"ok":1,"tr":1,"jerk":0.0403,"peff":0.5299,"tcl":0.6585},{"n":55,"ok":1,"tr":1,"jerk":0.0386,"peff":0.5068,"tcl":0.7636},{"n":46,"ok":1,"tr":1,"jerk":0.038,"peff":0.5664,"tcl":0.7174},{"n":42,"ok":1,"tr":1,"jerk":0.0422,"peff":0.5723,"tcl":0.6429},{"n":59,"ok":1,"tr":1,"jerk":0.0311,"peff":0.4877,"tcl":0.7797},{"n":54,"ok":1,"tr":1,"jerk":0.0358,"peff":0.5203,"tcl":0.7037},{"n":48,"ok":1,"tr":1,"jerk":0.0392,"peff":0.6282,"tcl":0.6458},{"n":58,"ok":1,"tr":1,"jerk":0.0364,"peff":0.5147,"tcl":0.7414},{"n":45,"ok":1,"tr":1,"jerk":0.0443,"peff":0.566,"tcl":0.6889},{"n":50,"ok":1,"tr":1,"jerk":0.0426,"peff":0.5599,"tcl":0.72},{"n":49,"ok":1,"tr":1,"jerk":0.0399,"peff":0.5327,"tcl":0.6939},{"n":41,"ok":1,"tr":1,"jerk":0.0432,"peff":0.5287,"tcl":0.6585},{"n":51,"ok":1,"tr":1,"jerk":0.0518,"peff":0.6922,"tcl":0.7059},{"n":40,"ok":1,"tr":1,"jerk":0.0428,"peff":0.5139,"tcl":0.7},{"n":49,"ok":1,"tr":1,"jerk":0.0424,"peff":0.5133,"tcl":0.6327},{"n":53,"ok":1,"tr":1,"jerk":0.0343,"peff":0.4945,"tcl":0.717},{"n":39,"ok":1,"tr":1,"jerk":0.0453,"peff":0.547,"tcl":0.6923},{"n":46,"ok":1,"tr":1,"jerk":0.0376,"peff":0.5413,"tcl":0.6739},{"n":49,"ok":1,"tr":1,"jerk":0.0404,"peff":0.5108,"tcl":0.6939},{"n":47,"ok":1,"tr":1,"jerk":0.038,"peff":0.5131,"tcl":0.7021},{"n":40,"ok":1,"tr":1,"jerk":0.0356,"peff":0.5743,"tcl":0.625},{"n":53,"ok":1,"tr":1,"jerk":0.0526,"peff":0.5301,"tcl":0.717},{"n":48,"ok":1,"tr":1,"jerk":0.0395,"peff":0.5222,"tcl":0.6875},{"n":58,"ok":1,"tr":1,"jerk":0.0347,"peff":0.5392,"tcl":0.7241},{"n":45,"ok":1,"tr":1,"jerk":0.0454,"peff":0.5419,"tcl":0.6667},{"n":47,"ok":1,"tr":1,"jerk":0.0533,"peff":0.5649,"tcl":0.7021},{"n":46,"ok":1,"tr":1,"jerk":0.0369,"peff":0.6043,"tcl":0.6739},{"n":55,"ok":1,"tr":1,"jerk":0.0426,"peff":0.5379,"tcl":0.7636},{"n":43,"ok":1,"tr":1,"jerk":0.0439,"peff":0.5597,"tcl":0.6977},{"n":56,"ok":1,"tr":1,"jerk":0.0356,"peff":0.5485,"tcl":0.7679},{"n":40,"ok":1,"tr":1,"jerk":0.0466,"peff":0.6183,"tcl":0.65},{"n":38,"ok":1,"tr":1,"jerk":0.0455,"peff":0.5003,"tcl":0.6579},{"n":38,"ok":1,"tr":1,"jerk":0.0504,"peff":0.5743,"tcl":0.6579},{"n":44,"ok":1,"tr":1,"jerk":0.0457,"peff":0.5029,"tcl":0.7045},{"n":49,"ok":1,"tr":1,"jerk":0.0401,"peff":0.4795,"tcl":0.7347},{"n":42,"ok":1,"tr":1,"jerk":0.0585,"peff":0.5839,"tcl":0.6667},{"n":54,"ok":1,"tr":1,"jerk":0.0336,"peff":0.5607,"tcl":0.7037},{"n":41,"ok":1,"tr":1,"jerk":0.0409,"peff":0.5325,"tcl":0.6098},{"n":42,"ok":1,"tr":1,"jerk":0.043,"peff":0.4951,"tcl":0.6905},{"n":53,"ok":1,"tr":1,"jerk":0.0517,"peff":0.5945,"tcl":0.6415},{"n":38,"ok":1,"tr":1,"jerk":0.0682,"peff":0.5081,"tcl":0.6579},{"n":41,"ok":1,"tr":1,"jerk":0.0529,"peff":0.4992,"tcl":0.561},{"n":42,"ok":1,"tr":1,"jerk":0.0428,"peff":0.5037,"tcl":0.619},{"n":39,"ok":1,"tr":1,"jerk":0.0473,"peff":0.5525,"tcl":0.641},{"n":42,"ok":1,"tr":1,"jerk":0.0452,"peff":0.533,"tcl":0.6667},{"n":49,"ok":1,"tr":1,"jerk":0.048,"peff":0.4971,"tcl":0.6735},{"n":48,"ok":1,"tr":1,"jerk":0.04,"peff":0.5321,"tcl":0.6458},{"n":45,"ok":1,"tr":1,"jerk":0.0493,"peff":0.5518,"tcl":0.6667},{"n":38,"ok":1,"tr":1,"jerk":0.0561,"peff":0.5428,"tcl":0.6316},{"n":36,"ok":1,"tr":1,"jerk":0.0526,"peff":0.531,"tcl":0.6389},{"n":48,"ok":1,"tr":1,"jerk":0.0521,"peff":0.534,"tcl":0.7083},{"n":36,"ok":1,"tr":1,"jerk":0.0715,"peff":0.5083,"tcl":0.6389},{"n":48,"ok":1,"tr":1,"jerk":0.0476,"peff":0.5374,"tcl":0.6875},{"n":39,"ok":1,"tr":1,"jerk":0.0673,"peff":0.5535,"tcl":0.6667},{"n":44,"ok":1,"tr":1,"jerk":0.0474,"peff":0.5656,"tcl":0.7045},{"n":44,"ok":1,"tr":1,"jerk":0.0491,"peff":0.5692,"tcl":0.6136},{"n":44,"ok":1,"tr":1,"jerk":0.0374,"peff":0.5171,"tcl":0.6591},{"n":40,"ok":1,"tr":1,"jerk":0.0419,"peff":0.5209,"tcl":0.6},{"n":38,"ok":1,"tr":1,"jerk":0.0493,"peff":0.545,"tcl":0.5263},{"n":47,"ok":1,"tr":1,"jerk":0.0451,"peff":0.5652,"tcl":0.7021},{"n":52,"ok":1,"tr":1,"jerk":0.0314,"peff":0.6155,"tcl":0.7308},{"n":53,"ok":1,"tr":1,"jerk":0.0496,"peff":0.584,"tcl":0.7736},{"n":46,"ok":1,"tr":1,"jerk":0.0441,"peff":0.4816,"tcl":0.6957},{"n":38,"ok":1,"tr":1,"jerk":0.05,"peff":0.5652,"tcl":0.6579},{"n":39,"ok":1,"tr":1,"jerk":0.0485,"peff":0.5248,"tcl":0.6667},{"n":39,"ok":1,"tr":1,"jerk":0.0557,"peff":0.5724,"tcl":0.6667},{"n":41,"ok":1,"tr":1,"jerk":0.0489,"peff":0.5572,"tcl":0.6585},{"n":51,"ok":1,"tr":1,"jerk":0.0415,"peff":0.5698,"tcl":0.6863},{"n":42,"ok":1,"tr":1,"jerk":0.0444,"peff":0.63,"tcl":0.6905},{"n":37,"ok":1,"tr":1,"jerk":0.0483,"peff":0.5642,"tcl":0.5676},{"n":51,"ok":1,"tr":1,"jerk":0.0377,"peff":0.5538,"tcl":0.6863},{"n":50,"ok":1,"tr":1,"jerk":0.0397,"peff":0.4886,"tcl":0.6},{"n":51,"ok":1,"tr":1,"jerk":0.041,"peff":0.5191,"tcl":0.7451},{"n":46,"ok":1,"tr":1,"jerk":0.0405,"peff":0.5221,"tcl":0.7174},{"n":56,"ok":1,"tr":1,"jerk":0.036,"peff":0.531,"tcl":0.75},{"n":53,"ok":1,"tr":1,"jerk":0.0358,"peff":0.5315,"tcl":0.6792},{"n":46,"ok":1,"tr":1,"jerk":0.0428,"peff":0.5868,"tcl":0.7174},{"n":46,"ok":1,"tr":1,"jerk":0.0432,"peff":0.4907,"tcl":0.6957}],"mh":[{"n":48,"ok":1,"tr":1,"jerk":0.0352,"peff":0.5165,"tcl":0.6875},{"n":55,"ok":1,"tr":1,"jerk":0.0371,"peff":0.5243,"tcl":0.7273},{"n":49,"ok":1,"tr":1,"jerk":0.0334,"peff":0.5462,"tcl":0.6939},{"n":118,"ok":1,"tr":3,"jerk":0.0514,"peff":0.3976,"tcl":0.5},{"n":56,"ok":1,"tr":1,"jerk":0.0495,"peff":0.5094,"tcl":0.7143},{"n":78,"ok":1,"tr":1,"jerk":0.0427,"peff":0.44,"tcl":0.7692},{"n":71,"ok":1,"tr":1,"jerk":0.0492,"peff":0.5042,"tcl":0.7465},{"n":82,"ok":1,"tr":1,"jerk":0.0506,"peff":0.4949,"tcl":0.7805},{"n":55,"ok":1,"tr":1,"jerk":0.0768,"peff":0.598,"tcl":0.7455},{"n":72,"ok":1,"tr":1,"jerk":0.0367,"peff":0.4961,"tcl":0.7083},{"n":72,"ok":1,"tr":1,"jerk":0.0601,"peff":0.4293,"tcl":0.7639},{"n":109,"ok":1,"tr":3,"jerk":0.0478,"peff":0.2961,"tcl":0.4495},{"n":81,"ok":1,"tr":1,"jerk":0.0451,"peff":0.4568,"tcl":0.7284},{"n":48,"ok":1,"tr":1,"jerk":0.0404,"peff":0.5287,"tcl":0.7083},{"n":72,"ok":1,"tr":1,"jerk":0.0994,"peff":0.3253,"tcl":0.7083},{"n":68,"ok":1,"tr":1,"jerk":0.0468,"peff":0.4538,"tcl":0.7353},{"n":88,"ok":1,"tr":1,"jerk":0.0446,"peff":0.3721,"tcl":0.7727},{"n":69,"ok":1,"tr":1,"jerk":0.0391,"peff":0.4495,"tcl":0.7246},{"n":84,"ok":1,"tr":1,"jerk":0.0277,"peff":0.5484,"tcl":0.7976},{"n":106,"ok":1,"tr":1,"jerk":0.0755,"peff":0.4217,"tcl":0.8208},{"n":94,"ok":1,"tr":1,"jerk":0.0624,"peff":0.291,"tcl":0.7766},{"n":84,"ok":1,"tr":1,"jerk":0.069,"peff":0.4264,"tcl":0.7976},{"n":91,"ok":1,"tr":1,"jerk":0.0299,"peff":0.488,"tcl":0.8132},{"n":101,"ok":1,"tr":1,"jerk":0.0453,"peff":0.4722,"tcl":0.7921},{"n":48,"ok":1,"tr":1,"jerk":0.0332,"peff":0.6295,"tcl":0.7083},{"n":73,"ok":1,"tr":1,"jerk":0.0604,"peff":0.4522,"tcl":0.7671},{"n":71,"ok":1,"tr":1,"jerk":0.0515,"peff":0.492,"tcl":0.7042},{"n":82,"ok":1,"tr":1,"jerk":0.0415,"peff":0.4779,"tcl":0.7561},{"n":86,"ok":1,"tr":1,"jerk":0.0597,"peff":0.3494,"tcl":0.8256},{"n":112,"ok":1,"tr":3,"jerk":0.0456,"peff":0.4815,"tcl":0.4821},{"n":62,"ok":1,"tr":1,"jerk":0.0334,"peff":0.5951,"tcl":0.7097},{"n":76,"ok":1,"tr":1,"jerk":0.0467,"peff":0.4767,"tcl":0.75},{"n":77,"ok":1,"tr":1,"jerk":0.0526,"peff":0.3966,"tcl":0.7662},{"n":90,"ok":1,"tr":1,"jerk":0.0542,"peff":0.4001,"tcl":0.7778},{"n":79,"ok":1,"tr":1,"jerk":0.0681,"peff":0.4723,"tcl":0.8354},{"n":49,"ok":1,"tr":1,"jerk":0.0337,"peff":0.5731,"tcl":0.7143},{"n":67,"ok":1,"tr":1,"jerk":0.0586,"peff":0.5036,"tcl":0.7313},{"n":74,"ok":1,"tr":1,"jerk":0.043,"peff":0.5464,"tcl":0.7432},{"n":66,"ok":1,"tr":1,"jerk":0.0307,"peff":0.5975,"tcl":0.7121},{"n":72,"ok":1,"tr":1,"jerk":0.0485,"peff":0.4689,"tcl":0.6944},{"n":97,"ok":1,"tr":1,"jerk":0.0779,"peff":0.3389,"tcl":0.8351},{"n":74,"ok":1,"tr":1,"jerk":0.0389,"peff":0.4635,"tcl":0.7568},{"n":64,"ok":1,"tr":1,"jerk":0.0342,"peff":0.4864,"tcl":0.7344},{"n":72,"ok":1,"tr":1,"jerk":0.0388,"peff":0.5349,"tcl":0.7639},{"n":77,"ok":1,"tr":1,"jerk":0.0702,"peff":0.5296,"tcl":0.7532},{"n":82,"ok":1,"tr":1,"jerk":0.0507,"peff":0.4908,"tcl":0.7073},{"n":58,"ok":1,"tr":1,"jerk":0.0324,"peff":0.5271,"tcl":0.6379},{"n":90,"ok":1,"tr":1,"jerk":0.0667,"peff":0.3729,"tcl":0.7778},{"n":64,"ok":1,"tr":1,"jerk":0.0379,"peff":0.5398,"tcl":0.75},{"n":75,"ok":1,"tr":1,"jerk":0.0327,"peff":0.5791,"tcl":0.7867},{"n":77,"ok":1,"tr":1,"jerk":0.0477,"peff":0.5558,"tcl":0.7532},{"n":97,"ok":1,"tr":1,"jerk":0.0321,"peff":0.4274,"tcl":0.8041},{"n":115,"ok":1,"tr":3,"jerk":0.0572,"peff":0.2674,"tcl":0.487},{"n":68,"ok":1,"tr":1,"jerk":0.0643,"peff":0.386,"tcl":0.6912},{"n":81,"ok":1,"tr":1,"jerk":0.0553,"peff":0.443,"tcl":0.7531},{"n":78,"ok":1,"tr":1,"jerk":0.0292,"peff":0.443,"tcl":0.7179},{"n":74,"ok":1,"tr":1,"jerk":0.0259,"peff":0.6319,"tcl":0.7568},{"n":55,"ok":1,"tr":1,"jerk":0.0343,"peff":0.5422,"tcl":0.7273},{"n":101,"ok":1,"tr":1,"jerk":0.0211,"peff":0.6222,"tcl":0.8119},{"n":108,"ok":1,"tr":1,"jerk":0.0206,"peff":0.5617,"tcl":0.787},{"n":95,"ok":1,"tr":1,"jerk":0.0182,"peff":0.6098,"tcl":0.7579},{"n":93,"ok":1,"tr":1,"jerk":0.014,"peff":0.5904,"tcl":0.7312},{"n":96,"ok":1,"tr":1,"jerk":0.0172,"peff":0.6163,"tcl":0.75},{"n":97,"ok":1,"tr":1,"jerk":0.0161,"peff":0.6268,"tcl":0.7629},{"n":96,"ok":1,"tr":1,"jerk":0.0162,"peff":0.5851,"tcl":0.7708},{"n":103,"ok":1,"tr":1,"jerk":0.0223,"peff":0.5554,"tcl":0.7573},{"n":102,"ok":1,"tr":1,"jerk":0.0167,"peff":0.6044,"tcl":0.7647},{"n":108,"ok":1,"tr":1,"jerk":0.0175,"peff":0.5722,"tcl":0.787},{"n":46,"ok":1,"tr":1,"jerk":0.039,"peff":0.5601,"tcl":0.6957},{"n":92,"ok":1,"tr":1,"jerk":0.0242,"peff":0.6066,"tcl":0.7609},{"n":91,"ok":1,"tr":1,"jerk":0.0198,"peff":0.6273,"tcl":0.7912},{"n":100,"ok":1,"tr":1,"jerk":0.0168,"peff":0.615,"tcl":0.8},{"n":90,"ok":1,"tr":1,"jerk":0.0177,"peff":0.6698,"tcl":0.7333},{"n":95,"ok":1,"tr":1,"jerk":0.0157,"peff":0.6101,"tcl":0.7474},{"n":105,"ok":1,"tr":1,"jerk":0.0187,"peff":0.5758,"tcl":0.781},{"n":104,"ok":1,"tr":1,"jerk":0.0226,"peff":0.5316,"tcl":0.7885},{"n":80,"ok":1,"tr":1,"jerk":0.0297,"peff":0.6368,"tcl":0.7125},{"n":90,"ok":1,"tr":1,"jerk":0.0267,"peff":0.6015,"tcl":0.7444},{"n":95,"ok":1,"tr":1,"jerk":0.0316,"peff":0.5856,"tcl":0.7579},{"n":54,"ok":1,"tr":1,"jerk":0.0357,"peff":0.5339,"tcl":0.7407},{"n":95,"ok":1,"tr":1,"jerk":0.0302,"peff":0.5863,"tcl":0.7368},{"n":91,"ok":1,"tr":1,"jerk":0.0191,"peff":0.5868,"tcl":0.7473},{"n":88,"ok":1,"tr":1,"jerk":0.0221,"peff":0.5368,"tcl":0.7614},{"n":94,"ok":1,"tr":1,"jerk":0.0184,"peff":0.6197,"tcl":0.7553},{"n":95,"ok":1,"tr":1,"jerk":0.0174,"peff":0.6215,"tcl":0.7684},{"n":95,"ok":1,"tr":1,"jerk":0.0165,"peff":0.6064,"tcl":0.7789},{"n":97,"ok":1,"tr":1,"jerk":0.0183,"peff":0.6086,"tcl":0.7835},{"n":90,"ok":1,"tr":1,"jerk":0.0198,"peff":0.6621,"tcl":0.7667},{"n":81,"ok":1,"tr":1,"jerk":0.0201,"peff":0.5888,"tcl":0.7531},{"n":101,"ok":1,"tr":1,"jerk":0.0192,"peff":0.5315,"tcl":0.7624},{"n":46,"ok":1,"tr":1,"jerk":0.036,"peff":0.48,"tcl":0.6522},{"n":88,"ok":1,"tr":1,"jerk":0.0209,"peff":0.6128,"tcl":0.7614},{"n":89,"ok":1,"tr":1,"jerk":0.0163,"peff":0.657,"tcl":0.764},{"n":93,"ok":1,"tr":1,"jerk":0.0198,"peff":0.6098,"tcl":0.7849},{"n":99,"ok":1,"tr":1,"jerk":0.0178,"peff":0.5569,"tcl":0.798},{"n":89,"ok":1,"tr":1,"jerk":0.0152,"peff":0.6205,"tcl":0.764},{"n":100,"ok":1,"tr":1,"jerk":0.02,"peff":0.7024,"tcl":0.8},{"n":100,"ok":1,"tr":1,"jerk":0.0196,"peff":0.5675,"tcl":0.78},{"n":97,"ok":1,"tr":1,"jerk":0.0167,"peff":0.6017,"tcl":0.7629},{"n":100,"ok":1,"tr":1,"jerk":0.0186,"peff":0.5029,"tcl":0.79},{"n":88,"ok":1,"tr":1,"jerk":0.0226,"peff":0.6007,"tcl":0.7273},{"n":48,"ok":1,"tr":1,"jerk":0.0338,"peff":0.5448,"tcl":0.75},{"n":97,"ok":1,"tr":1,"jerk":0.0184,"peff":0.6018,"tcl":0.7629},{"n":94,"ok":1,"tr":1,"jerk":0.0243,"peff":0.5594,"tcl":0.7553},{"n":88,"ok":1,"tr":1,"jerk":0.0201,"peff":0.5801,"tcl":0.7045},{"n":95,"ok":1,"tr":1,"jerk":0.019,"peff":0.6165,"tcl":0.7579},{"n":86,"ok":1,"tr":1,"jerk":0.0222,"peff":0.5955,"tcl":0.7907},{"n":89,"ok":1,"tr":1,"jerk":0.0197,"peff":0.6438,"tcl":0.7528},{"n":108,"ok":1,"tr":1,"jerk":0.018,"peff":0.5497,"tcl":0.8241},{"n":91,"ok":1,"tr":1,"jerk":0.0184,"peff":0.5819,"tcl":0.7692},{"n":115,"ok":1,"tr":1,"jerk":0.0175,"peff":0.5256,"tcl":0.8174},{"n":88,"ok":1,"tr":1,"jerk":0.0189,"peff":0.6723,"tcl":0.7841},{"n":46,"ok":1,"tr":1,"jerk":0.0334,"peff":0.6257,"tcl":0.7391},{"n":59,"ok":1,"tr":1,"jerk":0.0299,"peff":0.5362,"tcl":0.7288},{"n":125,"ok":1,"tr":1,"jerk":0.0393,"peff":0.2379,"tcl":0.768},{"n":76,"ok":1,"tr":1,"jerk":0.0542,"peff":0.3366,"tcl":0.7763},{"n":166,"ok":1,"tr":1,"jerk":0.0721,"peff":0.2657,"tcl":0.9036},{"n":100,"ok":1,"tr":1,"jerk":0.0388,"peff":0.3993,"tcl":0.83},{"n":140,"ok":1,"tr":3,"jerk":0.0398,"peff":0.2803,"tcl":0.4571},{"n":106,"ok":1,"tr":1,"jerk":0.1157,"peff":0.3134,"tcl":0.8585},{"n":118,"ok":1,"tr":1,"jerk":0.09,"peff":0.2087,"tcl":0.8136},{"n":126,"ok":1,"tr":1,"jerk":0.0403,"peff":0.2788,"tcl":0.8413},{"n":91,"ok":1,"tr":1,"jerk":0.0436,"peff":0.4137,"tcl":0.8242},{"n":82,"ok":1,"tr":1,"jerk":0.0638,"peff":0.3554,"tcl":0.8049},{"n":45,"ok":1,"tr":1,"jerk":0.0393,"peff":0.5291,"tcl":0.6444},{"n":89,"ok":1,"tr":1,"jerk":0.0551,"peff":0.3269,"tcl":0.7978},{"n":96,"ok":1,"tr":1,"jerk":0.0422,"peff":0.4181,"tcl":0.7708},{"n":124,"ok":1,"tr":1,"jerk":0.0443,"peff":0.2723,"tcl":0.8629},{"n":182,"ok":1,"tr":5,"jerk":0.0446,"peff":0.2213,"tcl":0.3626},{"n":119,"ok":1,"tr":1,"jerk":0.0667,"peff":0.3535,"tcl":0.8571},{"n":82,"ok":1,"tr":1,"jerk":0.0491,"peff":0.3905,"tcl":0.7683},{"n":96,"ok":1,"tr":1,"jerk":0.0476,"peff":0.2361,"tcl":0.7708},{"n":88,"ok":1,"tr":1,"jerk":0.0451,"peff":0.3429,"tcl":0.7727},{"n":87,"ok":1,"tr":1,"jerk":0.0918,"peff":0.357,"tcl":0.8276},{"n":84,"ok":1,"tr":1,"jerk":0.0577,"peff":0.4331,"tcl":0.7976},{"n":44,"ok":1,"tr":1,"jerk":0.0409,"peff":0.5453,"tcl":0.7045},{"n":122,"ok":1,"tr":3,"jerk":0.0438,"peff":0.3685,"tcl":0.541},{"n":106,"ok":1,"tr":1,"jerk":0.0476,"peff":0.2529,"tcl":0.8208},{"n":149,"ok":1,"tr":1,"jerk":0.0372,"peff":0.2571,"tcl":0.9128},{"n":93,"ok":1,"tr":1,"jerk":0.0692,"peff":0.3919,"tcl":0.7957},{"n":110,"ok":1,"tr":1,"jerk":0.0458,"peff":0.3232,"tcl":0.8091},{"n":114,"ok":1,"tr":1,"jerk":0.0646,"peff":0.288,"tcl":0.8333},{"n":107,"ok":1,"tr":1,"jerk":0.0445,"peff":0.3632,"tcl":0.8131},{"n":106,"ok":1,"tr":1,"jerk":0.0505,"peff":0.4009,"tcl":0.783},{"n":210,"ok":1,"tr":3,"jerk":0.0542,"peff":0.2107,"tcl":0.7048},{"n":125,"ok":1,"tr":1,"jerk":0.0341,"peff":0.4295,"tcl":0.864},{"n":52,"ok":1,"tr":1,"jerk":0.034,"peff":0.4995,"tcl":0.7115},{"n":150,"ok":1,"tr":1,"jerk":0.0426,"peff":0.4,"tcl":0.8733},{"n":133,"ok":1,"tr":1,"jerk":0.0337,"peff":0.4187,"tcl":0.8421},{"n":131,"ok":1,"tr":1,"jerk":0.0424,"peff":0.4008,"tcl":0.8397},{"n":122,"ok":1,"tr":1,"jerk":0.0536,"peff":0.338,"tcl":0.8115},{"n":111,"ok":1,"tr":1,"jerk":0.0253,"peff":0.518,"tcl":0.8198},{"n":156,"ok":1,"tr":1,"jerk":0.0801,"peff":0.3154,"tcl":0.8718},{"n":234,"ok":1,"tr":3,"jerk":0.0481,"peff":0.2093,"tcl":0.5128},{"n":106,"ok":1,"tr":1,"jerk":0.0347,"peff":0.4703,"tcl":0.8019},{"n":95,"ok":1,"tr":1,"jerk":0.0561,"peff":0.4364,"tcl":0.8},{"n":107,"ok":1,"tr":1,"jerk":0.0479,"peff":0.334,"tcl":0.729},{"n":48,"ok":1,"tr":1,"jerk":0.0393,"peff":0.5472,"tcl":0.6875},{"n":107,"ok":1,"tr":1,"jerk":0.0254,"peff":0.4516,"tcl":0.8037},{"n":303,"ok":1,"tr":7,"jerk":0.0512,"peff":0.1429,"tcl":0.2079},{"n":121,"ok":1,"tr":1,"jerk":0.0633,"peff":0.3483,"tcl":0.7934},{"n":133,"ok":1,"tr":1,"jerk":0.0229,"peff":0.4223,"tcl":0.8496},{"n":118,"ok":1,"tr":1,"jerk":0.0241,"peff":0.4058,"tcl":0.839},{"n":120,"ok":1,"tr":1,"jerk":0.0345,"peff":0.4571,"tcl":0.825},{"n":140,"ok":1,"tr":1,"jerk":0.0687,"peff":0.3566,"tcl":0.85},{"n":158,"ok":1,"tr":3,"jerk":0.0435,"peff":0.2273,"tcl":0.5506},{"n":159,"ok":1,"tr":3,"jerk":0.0515,"peff":0.2446,"tcl":0.4025},{"n":80,"ok":1,"tr":1,"jerk":0.0482,"peff":0.421,"tcl":0.7625},{"n":56,"ok":1,"tr":1,"jerk":0.0334,"peff":0.6194,"tcl":0.6607},{"n":100,"ok":1,"tr":1,"jerk":0.0578,"peff":0.334,"tcl":0.8},{"n":72,"ok":1,"tr":1,"jerk":0.0362,"peff":0.4471,"tcl":0.7222},{"n":118,"ok":1,"tr":1,"jerk":0.0523,"peff":0.37,"tcl":0.8136},{"n":96,"ok":1,"tr":1,"jerk":0.036,"peff":0.4364,"tcl":0.75},{"n":140,"ok":1,"tr":1,"jerk":0.0488,"peff":0.3571,"tcl":0.8143},{"n":129,"ok":1,"tr":1,"jerk":0.0411,"peff":0.4148,"tcl":0.8062},{"n":101,"ok":1,"tr":1,"jerk":0.0383,"peff":0.4152,"tcl":0.7921},{"n":96,"ok":1,"tr":1,"jerk":0.032,"peff":0.5428,"tcl":0.8021},{"n":132,"ok":1,"tr":1,"jerk":0.0295,"peff":0.3752,"tcl":0.8182},{"n":313,"ok":1,"tr":1,"jerk":0.0897,"peff":0.1076,"tcl":0.9393},{"n":47,"ok":1,"tr":1,"jerk":0.0403,"peff":0.5719,"tcl":0.6809},{"n":100,"ok":1,"tr":1,"jerk":0.027,"peff":0.4207,"tcl":0.82},{"n":87,"ok":1,"tr":1,"jerk":0.0725,"peff":0.4229,"tcl":0.7701},{"n":101,"ok":1,"tr":1,"jerk":0.0651,"peff":0.345,"tcl":0.7822},{"n":102,"ok":1,"tr":1,"jerk":0.05,"peff":0.4479,"tcl":0.7941},{"n":97,"ok":1,"tr":1,"jerk":0.0419,"peff":0.3585,"tcl":0.8144},{"n":94,"ok":1,"tr":1,"jerk":0.0327,"peff":0.4139,"tcl":0.7872},{"n":137,"ok":1,"tr":1,"jerk":0.0354,"peff":0.4443,"tcl":0.8613},{"n":80,"ok":1,"tr":1,"jerk":0.0358,"peff":0.5076,"tcl":0.7875},{"n":106,"ok":1,"tr":3,"jerk":0.051,"peff":0.457,"tcl":0.6226},{"n":98,"ok":1,"tr":1,"jerk":0.0379,"peff":0.4922,"tcl":0.7857},{"n":51,"ok":1,"tr":1,"jerk":0.0355,"peff":0.5239,"tcl":0.7451},{"n":77,"ok":1,"tr":1,"jerk":0.0588,"peff":0.4485,"tcl":0.7403},{"n":105,"ok":1,"tr":1,"jerk":0.076,"peff":0.4239,"tcl":0.8095},{"n":104,"ok":1,"tr":1,"jerk":0.0402,"peff":0.4695,"tcl":0.7885},{"n":95,"ok":1,"tr":1,"jerk":0.0267,"peff":0.4305,"tcl":0.8211},{"n":86,"ok":1,"tr":1,"jerk":0.04,"peff":0.446,"tcl":0.7674},{"n":81,"ok":1,"tr":1,"jerk":0.0393,"peff":0.4423,"tcl":0.7531},{"n":99,"ok":1,"tr":1,"jerk":0.0349,"peff":0.3453,"tcl":0.7576},{"n":112,"ok":1,"tr":1,"jerk":0.0317,"peff":0.3043,"tcl":0.8036},{"n":183,"ok":1,"tr":2,"jerk":0.0515,"peff":0.2159,"tcl":0.8743}],"mg":[{"n":150,"ok":0,"tr":77,"jerk":0.7597,"peff":0.0657,"tcl":0.04},{"n":150,"ok":0,"tr":82,"jerk":0.6781,"peff":0.195,"tcl":0.0133},{"n":150,"ok":0,"tr":76,"jerk":0.7133,"peff":0.1148,"tcl":0.0133},{"n":150,"ok":0,"tr":4,"jerk":0.3303,"peff":0.1501,"tcl":0.4667},{"n":150,"ok":1,"tr":42,"jerk":0.4428,"peff":0.237,"tcl":0.1267},{"n":150,"ok":0,"tr":36,"jerk":0.332,"peff":0.203,"tcl":0.12},{"n":150,"ok":1,"tr":27,"jerk":0.4293,"peff":0.1267,"tcl":0.4067},{"n":150,"ok":0,"tr":49,"jerk":0.3861,"peff":0.1932,"tcl":0.1133},{"n":150,"ok":0,"tr":60,"jerk":0.396,"peff":0.2078,"tcl":0.1067},{"n":150,"ok":0,"tr":26,"jerk":0.339,"peff":0.3073,"tcl":0.1067},{"n":150,"ok":0,"tr":59,"jerk":0.5211,"peff":0.1532,"tcl":0.1467},{"n":150,"ok":1,"tr":11,"jerk":0.17,"peff":0.3574,"tcl":0.1067},{"n":150,"ok":0,"tr":28,"jerk":0.3097,"peff":0.2319,"tcl":0.0933},{"n":150,"ok":0,"tr":75,"jerk":0.7422,"peff":0.1376,"tcl":0.0133},{"n":150,"ok":0,"tr":35,"jerk":0.3521,"peff":0.089,"tcl":0.1533},{"n":150,"ok":0,"tr":12,"jerk":0.3066,"peff":0.3281,"tcl":0.0933},{"n":150,"ok":0,"tr":42,"jerk":0.3825,"peff":0.3544,"tcl":0.1067},{"n":150,"ok":0,"tr":30,"jerk":0.4138,"peff":0.0805,"tcl":0.2667},{"n":150,"ok":0,"tr":12,"jerk":0.3437,"peff":0.2357,"tcl":0.2},{"n":150,"ok":0,"tr":18,"jerk":0.3446,"peff":0.1171,"tcl":0.1333},{"n":150,"ok":0,"tr":4,"jerk":0.281,"peff":0.1656,"tcl":0.3867},{"n":150,"ok":0,"tr":32,"jerk":0.3695,"peff":0.1692,"tcl":0.1},{"n":150,"ok":0,"tr":24,"jerk":0.3183,"peff":0.2893,"tcl":0.3667},{"n":150,"ok":1,"tr":23,"jerk":0.2128,"peff":0.2133,"tcl":0.0933},{"n":150,"ok":0,"tr":73,"jerk":0.7221,"peff":0.1233,"tcl":0.04},{"n":150,"ok":0,"tr":20,"jerk":0.4083,"peff":0.1939,"tcl":0.1067},{"n":150,"ok":0,"tr":50,"jerk":0.375,"peff":0.2652,"tcl":0.0867},{"n":150,"ok":1,"tr":46,"jerk":0.4088,"peff":0.232,"tcl":0.1333},{"n":150,"ok":1,"tr":17,"jerk":0.2609,"peff":0.2573,"tcl":0.1},{"n":150,"ok":1,"tr":31,"jerk":0.3844,"peff":0.1447,"tcl":0.1467},{"n":150,"ok":0,"tr":16,"jerk":0.3445,"peff":0.2283,"tcl":0.3267},{"n":150,"ok":0,"tr":16,"jerk":0.3937,"peff":0.1724,"tcl":0.1067},{"n":150,"ok":0,"tr":23,"jerk":0.38,"peff":0.2494,"tcl":0.1133},{"n":150,"ok":0,"tr":10,"jerk":0.3044,"peff":0.2751,"tcl":0.0867},{"n":150,"ok":1,"tr":27,"jerk":0.372,"peff":0.1862,"tcl":0.0933},{"n":150,"ok":0,"tr":73,"jerk":0.7381,"peff":0.1592,"tcl":0.0133},{"n":150,"ok":0,"tr":16,"jerk":0.3864,"peff":0.227,"tcl":0.2},{"n":150,"ok":0,"tr":42,"jerk":0.3316,"peff":0.2399,"tcl":0.1067},{"n":150,"ok":1,"tr":11,"jerk":0.2018,"peff":0.3051,"tcl":0.0867},{"n":150,"ok":0,"tr":47,"jerk":0.3767,"peff":0.2851,"tcl":0.1067},{"n":150,"ok":1,"tr":11,"jerk":0.2386,"peff":0.2245,"tcl":0.12},{"n":150,"ok":1,"tr":10,"jerk":0.2867,"peff":0.2151,"tcl":0.2},{"n":150,"ok":1,"tr":35,"jerk":0.2678,"peff":0.2953,"tcl":0.0867},{"n":150,"ok":0,"tr":30,"jerk":0.3465,"peff":0.1278,"tcl":0.1533},{"n":150,"ok":0,"tr":24,"jerk":0.3052,"peff":0.2977,"tcl":0.1533},{"n":150,"ok":0,"tr":46,"jerk":0.3438,"peff":0.2407,"tcl":0.0933},{"n":150,"ok":0,"tr":80,"jerk":0.7211,"peff":0.0989,"tcl":0.0067},{"n":150,"ok":0,"tr":49,"jerk":0.3181,"peff":0.2885,"tcl":0.14},{"n":150,"ok":0,"tr":51,"jerk":0.3517,"peff":0.2696,"tcl":0.1133},{"n":150,"ok":0,"tr":25,"jerk":0.2974,"peff":0.1385,"tcl":0.5},{"n":150,"ok":0,"tr":12,"jerk":0.3699,"peff":0.1519,"tcl":0.2667},{"n":150,"ok":1,"tr":22,"jerk":0.3106,"peff":0.359,"tcl":0.0067},{"n":150,"ok":0,"tr":42,"jerk":0.4257,"peff":0.1555,"tcl":0.22},{"n":150,"ok":0,"tr":32,"jerk":0.4546,"peff":0.1243,"tcl":0.12},{"n":150,"ok":1,"tr":31,"jerk":0.2415,"peff":0.3833,"tcl":0.0933},{"n":150,"ok":0,"tr":2,"jerk":0.3587,"peff":0.2109,"tcl":0.0933},{"n":150,"ok":1,"tr":5,"jerk":0.156,"peff":0.3245,"tcl":0.1133},{"n":150,"ok":0,"tr":69,"jerk":0.7108,"peff":0.0757,"tcl":0.0133},{"n":150,"ok":0,"tr":12,"jerk":0.3162,"peff":0.2578,"tcl":0.0933},{"n":150,"ok":0,"tr":22,"jerk":0.3257,"peff":0.2092,"tcl":0.1067},{"n":150,"ok":0,"tr":14,"jerk":0.3812,"peff":0.1538,"tcl":0.3667},{"n":150,"ok":0,"tr":54,"jerk":0.3607,"peff":0.2767,"tcl":0.1267},{"n":150,"ok":0,"tr":22,"jerk":0.3248,"peff":0.2656,"tcl":0.1667},{"n":150,"ok":1,"tr":10,"jerk":0.3313,"peff":0.2462,"tcl":0.24},{"n":150,"ok":0,"tr":4,"jerk":0.2873,"peff":0.1547,"tcl":0.7933},{"n":150,"ok":1,"tr":7,"jerk":0.1654,"peff":0.3556,"tcl":0.24},{"n":150,"ok":0,"tr":52,"jerk":0.3893,"peff":0.2225,"tcl":0.1067},{"n":150,"ok":0,"tr":8,"jerk":0.3685,"peff":0.2084,"tcl":0.2533},{"n":150,"ok":0,"tr":77,"jerk":0.7157,"peff":0.1624,"tcl":0.0067},{"n":150,"ok":1,"tr":13,"jerk":0.164,"peff":0.3211,"tcl":0.0933},{"n":150,"ok":0,"tr":51,"jerk":0.3714,"peff":0.2198,"tcl":0.1},{"n":150,"ok":0,"tr":14,"jerk":0.3628,"peff":0.2489,"tcl":0.1},{"n":150,"ok":0,"tr":8,"jerk":0.3115,"peff":0.1559,"tcl":0.1},{"n":150,"ok":0,"tr":18,"jerk":0.3911,"peff":0.1083,"tcl":0.26},{"n":150,"ok":0,"tr":19,"jerk":0.3614,"peff":0.2829,"tcl":0.1133},{"n":150,"ok":0,"tr":15,"jerk":0.323,"peff":0.2406,"tcl":0.1067},{"n":150,"ok":0,"tr":60,"jerk":0.3838,"peff":0.299,"tcl":0.0867},{"n":150,"ok":1,"tr":35,"jerk":0.2779,"peff":0.3235,"tcl":0.1067},{"n":150,"ok":0,"tr":16,"jerk":0.3349,"peff":0.1569,"tcl":0.14},{"n":150,"ok":0,"tr":73,"jerk":0.7014,"peff":0.0955,"tcl":0.0133},{"n":150,"ok":1,"tr":25,"jerk":0.2859,"peff":0.2308,"tcl":0.1},{"n":150,"ok":0,"tr":28,"jerk":0.2996,"peff":0.2911,"tcl":0.2867},{"n":150,"ok":0,"tr":18,"jerk":0.3245,"peff":0.2363,"tcl":0.1},{"n":150,"ok":0,"tr":26,"jerk":0.3942,"peff":0.1717,"tcl":0.32},{"n":150,"ok":0,"tr":44,"jerk":0.4386,"peff":0.2117,"tcl":0.1133},{"n":150,"ok":1,"tr":3,"jerk":0.2257,"peff":0.305,"tcl":0.1467},{"n":150,"ok":1,"tr":7,"jerk":0.2277,"peff":0.2539,"tcl":0.0867},{"n":150,"ok":0,"tr":18,"jerk":0.3441,"peff":0.2836,"tcl":0.1133},{"n":150,"ok":0,"tr":64,"jerk":0.394,"peff":0.2355,"tcl":0.1},{"n":150,"ok":0,"tr":11,"jerk":0.3345,"peff":0.2639,"tcl":0.3667},{"n":150,"ok":0,"tr":75,"jerk":0.7206,"peff":0.1117,"tcl":0.0133},{"n":150,"ok":0,"tr":19,"jerk":0.4372,"peff":0.1553,"tcl":0.1},{"n":150,"ok":1,"tr":9,"jerk":0.1723,"peff":0.3438,"tcl":0.1333},{"n":150,"ok":0,"tr":20,"jerk":0.4134,"peff":0.2082,"tcl":0.1267},{"n":150,"ok":0,"tr":50,"jerk":0.4197,"peff":0.2483,"tcl":0.1467},{"n":150,"ok":1,"tr":43,"jerk":0.351,"peff":0.1147,"tcl":0.1},{"n":150,"ok":1,"tr":12,"jerk":0.3328,"peff":0.2471,"tcl":0.1333},{"n":150,"ok":0,"tr":8,"jerk":0.2988,"peff":0.2933,"tcl":0.12},{"n":150,"ok":1,"tr":8,"jerk":0.3075,"peff":0.2492,"tcl":0.1},{"n":150,"ok":0,"tr":39,"jerk":0.3499,"peff":0.2667,"tcl":0.0867},{"n":150,"ok":0,"tr":10,"jerk":0.4245,"peff":0.2038,"tcl":0.12},{"n":150,"ok":0,"tr":62,"jerk":0.7258,"peff":0.1819,"tcl":0.0133},{"n":150,"ok":0,"tr":28,"jerk":0.3466,"peff":0.2073,"tcl":0.1533},{"n":150,"ok":0,"tr":25,"jerk":0.3017,"peff":0.2938,"tcl":0.1467},{"n":150,"ok":0,"tr":0,"jerk":0.3535,"peff":0.2508,"tcl":1.0},{"n":150,"ok":0,"tr":2,"jerk":0.3096,"peff":0.1657,"tcl":0.1733},{"n":150,"ok":0,"tr":8,"jerk":0.3507,"peff":0.2809,"tcl":0.2267},{"n":150,"ok":1,"tr":17,"jerk":0.1737,"peff":0.3415,"tcl":0.0733},{"n":150,"ok":0,"tr":30,"jerk":0.3536,"peff":0.2735,"tcl":0.2267},{"n":150,"ok":1,"tr":29,"jerk":0.3323,"peff":0.247,"tcl":0.1},{"n":150,"ok":0,"tr":37,"jerk":0.3299,"peff":0.2426,"tcl":0.0933},{"n":150,"ok":1,"tr":15,"jerk":0.2105,"peff":0.3087,"tcl":0.1},{"n":150,"ok":0,"tr":78,"jerk":0.7461,"peff":0.0762,"tcl":0.0267},{"n":150,"ok":0,"tr":72,"jerk":0.7301,"peff":0.1086,"tcl":0.0067},{"n":150,"ok":1,"tr":27,"jerk":0.2548,"peff":0.2701,"tcl":0.1},{"n":150,"ok":1,"tr":7,"jerk":0.1715,"peff":0.3202,"tcl":0.18},{"n":150,"ok":1,"tr":47,"jerk":0.2575,"peff":0.1926,"tcl":0.12},{"n":150,"ok":0,"tr":6,"jerk":0.2913,"peff":0.1348,"tcl":0.3867},{"n":150,"ok":0,"tr":22,"jerk":0.3848,"peff":0.1657,"tcl":0.22},{"n":150,"ok":0,"tr":58,"jerk":0.3314,"peff":0.2803,"tcl":0.0867},{"n":150,"ok":0,"tr":0,"jerk":0.4264,"peff":0.1703,"tcl":1.0},{"n":150,"ok":0,"tr":24,"jerk":0.3537,"peff":0.2076,"tcl":0.3133},{"n":150,"ok":1,"tr":15,"jerk":0.1822,"peff":0.3623,"tcl":0.0867},{"n":150,"ok":0,"tr":21,"jerk":0.3279,"peff":0.2228,"tcl":0.1333},{"n":150,"ok":0,"tr":74,"jerk":0.6988,"peff":0.073,"tcl":0.02},{"n":150,"ok":0,"tr":16,"jerk":0.3556,"peff":0.2486,"tcl":0.1},{"n":150,"ok":0,"tr":24,"jerk":0.3311,"peff":0.2761,"tcl":0.14},{"n":150,"ok":1,"tr":17,"jerk":0.2051,"peff":0.318,"tcl":0.0933},{"n":150,"ok":0,"tr":0,"jerk":0.4038,"peff":0.1986,"tcl":1.0},{"n":150,"ok":1,"tr":15,"jerk":0.2927,"peff":0.2821,"tcl":0.3867},{"n":150,"ok":0,"tr":10,"jerk":0.3103,"peff":0.2395,"tcl":0.1667},{"n":150,"ok":1,"tr":1,"jerk":0.1404,"peff":0.312,"tcl":0.08},{"n":150,"ok":0,"tr":48,"jerk":0.4124,"peff":0.2108,"tcl":0.1333},{"n":150,"ok":0,"tr":16,"jerk":0.349,"peff":0.0773,"tcl":0.6733},{"n":150,"ok":0,"tr":20,"jerk":0.365,"peff":0.2217,"tcl":0.12},{"n":150,"ok":0,"tr":73,"jerk":0.7171,"peff":0.1173,"tcl":0.02},{"n":150,"ok":0,"tr":14,"jerk":0.3499,"peff":0.2108,"tcl":0.1067},{"n":150,"ok":0,"tr":2,"jerk":0.4394,"peff":0.1306,"tcl":0.2133},{"n":150,"ok":0,"tr":22,"jerk":0.3422,"peff":0.2215,"tcl":0.0933},{"n":150,"ok":0,"tr":38,"jerk":0.4262,"peff":0.1891,"tcl":0.12},{"n":150,"ok":0,"tr":40,"jerk":0.3598,"peff":0.2363,"tcl":0.1067},{"n":150,"ok":0,"tr":16,"jerk":0.3993,"peff":0.178,"tcl":0.0867},{"n":150,"ok":0,"tr":36,"jerk":0.3339,"peff":0.1842,"tcl":0.14},{"n":150,"ok":1,"tr":8,"jerk":0.27,"peff":0.1388,"tcl":0.1067},{"n":150,"ok":1,"tr":49,"jerk":0.3302,"peff":0.2172,"tcl":0.1067},{"n":150,"ok":0,"tr":48,"jerk":0.3466,"peff":0.2522,"tcl":0.0867},{"n":150,"ok":0,"tr":82,"jerk":0.7144,"peff":0.0935,"tcl":0.02},{"n":150,"ok":0,"tr":38,"jerk":0.3528,"peff":0.1868,"tcl":0.14},{"n":150,"ok":0,"tr":16,"jerk":0.4295,"peff":0.2341,"tcl":0.1133},{"n":150,"ok":0,"tr":44,"jerk":0.3976,"peff":0.2103,"tcl":0.1},{"n":150,"ok":0,"tr":27,"jerk":0.3705,"peff":0.1845,"tcl":0.14},{"n":150,"ok":0,"tr":25,"jerk":0.3822,"peff":0.1994,"tcl":0.1},{"n":150,"ok":0,"tr":30,"jerk":0.3741,"peff":0.2127,"tcl":0.1067},{"n":150,"ok":0,"tr":28,"jerk":0.305,"peff":0.3073,"tcl":0.0867},{"n":150,"ok":0,"tr":14,"jerk":0.3428,"peff":0.2877,"tcl":0.1267},{"n":150,"ok":1,"tr":9,"jerk":0.206,"peff":0.2845,"tcl":0.3},{"n":150,"ok":0,"tr":16,"jerk":0.4083,"peff":0.2156,"tcl":0.1467},{"n":150,"ok":0,"tr":71,"jerk":0.7172,"peff":0.1365,"tcl":0.0133},{"n":150,"ok":1,"tr":0,"jerk":0.3031,"peff":0.2678,"tcl":1.0},{"n":150,"ok":1,"tr":9,"jerk":0.1694,"peff":0.3129,"tcl":0.1267},{"n":150,"ok":1,"tr":28,"jerk":0.3498,"peff":0.2184,"tcl":0.1},{"n":150,"ok":0,"tr":48,"jerk":0.2986,"peff":0.3373,"tcl":0.1067},{"n":150,"ok":0,"tr":38,"jerk":0.4613,"peff":0.1623,"tcl":0.1867},{"n":150,"ok":0,"tr":2,"jerk":0.2717,"peff":0.2394,"tcl":0.1},{"n":150,"ok":0,"tr":17,"jerk":0.3313,"peff":0.1206,"tcl":0.7933},{"n":150,"ok":0,"tr":8,"jerk":0.3204,"peff":0.2379,"tcl":0.1067},{"n":150,"ok":0,"tr":40,"jerk":0.3836,"peff":0.2313,"tcl":0.0933},{"n":150,"ok":0,"tr":50,"jerk":0.4264,"peff":0.2207,"tcl":0.1067},{"n":150,"ok":0,"tr":79,"jerk":0.7313,"peff":0.12,"tcl":0.0067},{"n":150,"ok":1,"tr":13,"jerk":0.2347,"peff":0.3142,"tcl":0.2333},{"n":150,"ok":0,"tr":43,"jerk":0.3776,"peff":0.1836,"tcl":0.1133},{"n":150,"ok":0,"tr":2,"jerk":0.2977,"peff":0.229,"tcl":0.8},{"n":150,"ok":0,"tr":51,"jerk":0.3326,"peff":0.2326,"tcl":0.1133},{"n":150,"ok":0,"tr":0,"jerk":0.2802,"peff":0.2774,"tcl":1.0},{"n":150,"ok":0,"tr":58,"jerk":0.378,"peff":0.2319,"tcl":0.1267},{"n":150,"ok":0,"tr":0,"jerk":0.3389,"peff":0.2406,"tcl":1.0},{"n":150,"ok":0,"tr":28,"jerk":0.3466,"peff":0.2534,"tcl":0.12},{"n":150,"ok":0,"tr":8,"jerk":0.3299,"peff":0.1517,"tcl":0.46},{"n":150,"ok":0,"tr":45,"jerk":0.3664,"peff":0.2143,"tcl":0.1267},{"n":150,"ok":0,"tr":69,"jerk":0.6911,"peff":0.087,"tcl":0.0133},{"n":150,"ok":1,"tr":13,"jerk":0.2514,"peff":0.3393,"tcl":0.1067},{"n":150,"ok":1,"tr":13,"jerk":0.2026,"peff":0.277,"tcl":0.1333},{"n":150,"ok":1,"tr":24,"jerk":0.2788,"peff":0.2879,"tcl":0.12},{"n":150,"ok":0,"tr":4,"jerk":0.3719,"peff":0.2362,"tcl":0.0933},{"n":150,"ok":0,"tr":15,"jerk":0.359,"peff":0.1561,"tcl":0.0733},{"n":150,"ok":0,"tr":56,"jerk":0.3872,"peff":0.2709,"tcl":0.1067},{"n":150,"ok":1,"tr":20,"jerk":0.2778,"peff":0.3296,"tcl":0.1067},{"n":150,"ok":0,"tr":14,"jerk":0.3188,"peff":0.1392,"tcl":0.1333},{"n":150,"ok":0,"tr":43,"jerk":0.3514,"peff":0.1989,"tcl":0.0867},{"n":150,"ok":0,"tr":8,"jerk":0.3148,"peff":0.2678,"tcl":0.1067},{"n":150,"ok":0,"tr":70,"jerk":0.7248,"peff":0.0609,"tcl":0.04},{"n":150,"ok":0,"tr":43,"jerk":0.3967,"peff":0.0965,"tcl":0.18},{"n":150,"ok":1,"tr":47,"jerk":0.3487,"peff":0.2249,"tcl":0.1067},{"n":150,"ok":0,"tr":8,"jerk":0.3672,"peff":0.2219,"tcl":0.1267},{"n":150,"ok":0,"tr":42,"jerk":0.3245,"peff":0.1562,"tcl":0.1},{"n":150,"ok":0,"tr":30,"jerk":0.3691,"peff":0.176,"tcl":0.38},{"n":150,"ok":1,"tr":16,"jerk":0.3404,"peff":0.2959,"tcl":0.1067},{"n":150,"ok":0,"tr":26,"jerk":0.389,"peff":0.193,"tcl":0.16},{"n":150,"ok":0,"tr":20,"jerk":0.3822,"peff":0.1393,"tcl":0.2267},{"n":150,"ok":0,"tr":44,"jerk":0.3281,"peff":0.2317,"tcl":0.12}]};
-
+const D = {"screen":{"ph":[{"n":59,"ok":1,"tr":1,"jerk":0.0416,"peff":0.5188,"tcl":0.7458},{"n":58,"ok":1,"tr":1,"jerk":0.0322,"peff":0.5172,"tcl":0.7586},{"n":54,"ok":1,"tr":1,"jerk":0.0332,"peff":0.5479,"tcl":0.7593},{"n":47,"ok":1,"tr":1,"jerk":0.0578,"peff":0.5322,"tcl":0.7234},{"n":43,"ok":1,"tr":1,"jerk":0.0416,"peff":0.5508,"tcl":0.6977},{"n":58,"ok":1,"tr":1,"jerk":0.0352,"peff":0.5412,"tcl":0.7759},{"n":52,"ok":1,"tr":1,"jerk":0.0397,"peff":0.6124,"tcl":0.6154},{"n":48,"ok":1,"tr":1,"jerk":0.0406,"peff":0.549,"tcl":0.7292},{"n":55,"ok":1,"tr":1,"jerk":0.0413,"peff":0.4416,"tcl":0.7636},{"n":49,"ok":1,"tr":1,"jerk":0.0347,"peff":0.5616,"tcl":0.7551},{"n":62,"ok":1,"tr":1,"jerk":0.0344,"peff":0.4892,"tcl":0.7742},{"n":43,"ok":1,"tr":1,"jerk":0.044,"peff":0.5525,"tcl":0.7209},{"n":50,"ok":1,"tr":1,"jerk":0.0514,"peff":0.5437,"tcl":0.72},{"n":49,"ok":1,"tr":1,"jerk":0.0449,"peff":0.5482,"tcl":0.6531},{"n":45,"ok":1,"tr":1,"jerk":0.0458,"peff":0.5507,"tcl":0.6667},{"n":46,"ok":1,"tr":1,"jerk":0.0377,"peff":0.5719,"tcl":0.6957},{"n":44,"ok":1,"tr":1,"jerk":0.0445,"peff":0.5551,"tcl":0.6818},{"n":43,"ok":1,"tr":1,"jerk":0.0491,"peff":0.6086,"tcl":0.6977},{"n":47,"ok":1,"tr":1,"jerk":0.0376,"peff":0.5073,"tcl":0.7234},{"n":49,"ok":1,"tr":1,"jerk":0.0388,"peff":0.5625,"tcl":0.6939},{"n":59,"ok":1,"tr":1,"jerk":0.036,"peff":0.5236,"tcl":0.7627},{"n":52,"ok":1,"tr":1,"jerk":0.0358,"peff":0.5111,"tcl":0.6923},{"n":54,"ok":1,"tr":1,"jerk":0.0384,"peff":0.5658,"tcl":0.7407},{"n":53,"ok":1,"tr":1,"jerk":0.0359,"peff":0.5355,"tcl":0.7547},{"n":53,"ok":1,"tr":1,"jerk":0.0436,"peff":0.6353,"tcl":0.717},{"n":63,"ok":1,"tr":1,"jerk":0.0318,"peff":0.5545,"tcl":0.7302},{"n":53,"ok":1,"tr":1,"jerk":0.0404,"peff":0.5191,"tcl":0.6981},{"n":60,"ok":1,"tr":1,"jerk":0.0318,"peff":0.5345,"tcl":0.7667},{"n":51,"ok":1,"tr":1,"jerk":0.038,"peff":0.5782,"tcl":0.7451},{"n":47,"ok":1,"tr":1,"jerk":0.0389,"peff":0.5434,"tcl":0.6809},{"n":55,"ok":1,"tr":1,"jerk":0.054,"peff":0.5263,"tcl":0.7455},{"n":56,"ok":1,"tr":1,"jerk":0.0318,"peff":0.5543,"tcl":0.75},{"n":58,"ok":1,"tr":1,"jerk":0.0384,"peff":0.5206,"tcl":0.7586},{"n":55,"ok":1,"tr":1,"jerk":0.039,"peff":0.6257,"tcl":0.6909},{"n":53,"ok":1,"tr":1,"jerk":0.0368,"peff":0.5318,"tcl":0.717},{"n":59,"ok":1,"tr":1,"jerk":0.031,"peff":0.5352,"tcl":0.7288},{"n":50,"ok":1,"tr":1,"jerk":0.0452,"peff":0.5679,"tcl":0.74},{"n":47,"ok":1,"tr":1,"jerk":0.0391,"peff":0.5375,"tcl":0.7234},{"n":46,"ok":1,"tr":1,"jerk":0.0379,"peff":0.4761,"tcl":0.6957},{"n":43,"ok":1,"tr":1,"jerk":0.0478,"peff":0.5249,"tcl":0.7209},{"n":45,"ok":1,"tr":1,"jerk":0.0441,"peff":0.5352,"tcl":0.7111},{"n":54,"ok":1,"tr":1,"jerk":0.0451,"peff":0.4979,"tcl":0.7778},{"n":53,"ok":1,"tr":1,"jerk":0.0374,"peff":0.5174,"tcl":0.7547},{"n":57,"ok":1,"tr":1,"jerk":0.0375,"peff":0.4843,"tcl":0.7544},{"n":50,"ok":1,"tr":1,"jerk":0.0434,"peff":0.5558,"tcl":0.74},{"n":48,"ok":1,"tr":1,"jerk":0.0508,"peff":0.5206,"tcl":0.7292},{"n":51,"ok":1,"tr":1,"jerk":0.0399,"peff":0.5011,"tcl":0.6667},{"n":49,"ok":1,"tr":1,"jerk":0.0433,"peff":0.4979,"tcl":0.7551},{"n":54,"ok":1,"tr":1,"jerk":0.038,"peff":0.5046,"tcl":0.7407},{"n":55,"ok":1,"tr":1,"jerk":0.0424,"peff":0.4683,"tcl":0.7273},{"n":49,"ok":1,"tr":1,"jerk":0.0337,"peff":0.4969,"tcl":0.7347},{"n":51,"ok":1,"tr":1,"jerk":0.0411,"peff":0.5133,"tcl":0.7255},{"n":45,"ok":1,"tr":1,"jerk":0.0397,"peff":0.6114,"tcl":0.7111},{"n":50,"ok":1,"tr":1,"jerk":0.036,"peff":0.5136,"tcl":0.72},{"n":51,"ok":1,"tr":1,"jerk":0.0496,"peff":0.5594,"tcl":0.7255},{"n":50,"ok":1,"tr":1,"jerk":0.0387,"peff":0.4949,"tcl":0.7},{"n":58,"ok":1,"tr":1,"jerk":0.0336,"peff":0.545,"tcl":0.7586},{"n":50,"ok":1,"tr":1,"jerk":0.0416,"peff":0.5799,"tcl":0.64},{"n":46,"ok":1,"tr":1,"jerk":0.038,"peff":0.5407,"tcl":0.7174},{"n":46,"ok":1,"tr":1,"jerk":0.0364,"peff":0.5175,"tcl":0.6087},{"n":45,"ok":1,"tr":1,"jerk":0.0368,"peff":0.5579,"tcl":0.7111},{"n":42,"ok":1,"tr":1,"jerk":0.0416,"peff":0.5253,"tcl":0.6905},{"n":49,"ok":1,"tr":1,"jerk":0.0418,"peff":0.5082,"tcl":0.7347},{"n":45,"ok":1,"tr":1,"jerk":0.0469,"peff":0.5119,"tcl":0.7111},{"n":63,"ok":1,"tr":1,"jerk":0.1065,"peff":0.4849,"tcl":0.746},{"n":41,"ok":1,"tr":1,"jerk":0.0467,"peff":0.5472,"tcl":0.6829},{"n":42,"ok":1,"tr":1,"jerk":0.0466,"peff":0.4395,"tcl":0.6905},{"n":45,"ok":1,"tr":1,"jerk":0.0427,"peff":0.4629,"tcl":0.7333},{"n":50,"ok":1,"tr":1,"jerk":0.0394,"peff":0.583,"tcl":0.68},{"n":43,"ok":1,"tr":1,"jerk":0.0386,"peff":0.5024,"tcl":0.7209},{"n":46,"ok":1,"tr":1,"jerk":0.0467,"peff":0.5121,"tcl":0.6957},{"n":52,"ok":1,"tr":1,"jerk":0.0486,"peff":0.5279,"tcl":0.6346},{"n":55,"ok":1,"tr":1,"jerk":0.0383,"peff":0.5345,"tcl":0.7636},{"n":44,"ok":1,"tr":1,"jerk":0.0493,"peff":0.5588,"tcl":0.7045},{"n":42,"ok":1,"tr":1,"jerk":0.0529,"peff":0.541,"tcl":0.7143},{"n":51,"ok":1,"tr":1,"jerk":0.0436,"peff":0.5374,"tcl":0.7059},{"n":64,"ok":1,"tr":1,"jerk":0.0369,"peff":0.4765,"tcl":0.7656},{"n":57,"ok":1,"tr":1,"jerk":0.0332,"peff":0.5598,"tcl":0.7544},{"n":52,"ok":1,"tr":1,"jerk":0.046,"peff":0.5284,"tcl":0.75},{"n":45,"ok":1,"tr":1,"jerk":0.0423,"peff":0.4806,"tcl":0.6444},{"n":48,"ok":1,"tr":1,"jerk":0.0378,"peff":0.5147,"tcl":0.7292},{"n":45,"ok":1,"tr":1,"jerk":0.0425,"peff":0.567,"tcl":0.7111},{"n":53,"ok":1,"tr":1,"jerk":0.0365,"peff":0.5591,"tcl":0.7358},{"n":39,"ok":1,"tr":1,"jerk":0.0405,"peff":0.5112,"tcl":0.6923},{"n":47,"ok":1,"tr":1,"jerk":0.0388,"peff":0.5185,"tcl":0.7021},{"n":52,"ok":1,"tr":1,"jerk":0.0493,"peff":0.5045,"tcl":0.75},{"n":63,"ok":1,"tr":1,"jerk":0.0318,"peff":0.4999,"tcl":0.7619},{"n":50,"ok":1,"tr":1,"jerk":0.0378,"peff":0.4924,"tcl":0.74},{"n":47,"ok":1,"tr":1,"jerk":0.0403,"peff":0.5181,"tcl":0.7234},{"n":48,"ok":1,"tr":1,"jerk":0.0347,"peff":0.5343,"tcl":0.7083},{"n":49,"ok":1,"tr":1,"jerk":0.0405,"peff":0.5296,"tcl":0.6939},{"n":55,"ok":1,"tr":1,"jerk":0.0357,"peff":0.5716,"tcl":0.7455},{"n":52,"ok":1,"tr":1,"jerk":0.0365,"peff":0.4297,"tcl":0.75},{"n":55,"ok":1,"tr":1,"jerk":0.0474,"peff":0.5699,"tcl":0.7273},{"n":53,"ok":1,"tr":1,"jerk":0.037,"peff":0.5558,"tcl":0.717},{"n":44,"ok":1,"tr":1,"jerk":0.0409,"peff":0.5502,"tcl":0.6591},{"n":59,"ok":1,"tr":1,"jerk":0.043,"peff":0.5128,"tcl":0.7966},{"n":45,"ok":1,"tr":1,"jerk":0.0395,"peff":0.478,"tcl":0.6889},{"n":43,"ok":1,"tr":1,"jerk":0.0457,"peff":0.5953,"tcl":0.6744},{"n":44,"ok":1,"tr":1,"jerk":0.0428,"peff":0.5368,"tcl":0.6364},{"n":52,"ok":1,"tr":1,"jerk":0.0434,"peff":0.5684,"tcl":0.6731},{"n":51,"ok":1,"tr":1,"jerk":0.0348,"peff":0.5285,"tcl":0.7451},{"n":51,"ok":1,"tr":1,"jerk":0.0448,"peff":0.5194,"tcl":0.7451},{"n":40,"ok":1,"tr":1,"jerk":0.039,"peff":0.502,"tcl":0.65},{"n":49,"ok":1,"tr":1,"jerk":0.0679,"peff":0.5423,"tcl":0.6939},{"n":42,"ok":1,"tr":1,"jerk":0.0579,"peff":0.5205,"tcl":0.7143},{"n":36,"ok":1,"tr":1,"jerk":0.0635,"peff":0.5293,"tcl":0.6389},{"n":54,"ok":1,"tr":1,"jerk":0.0536,"peff":0.4523,"tcl":0.7407},{"n":42,"ok":1,"tr":1,"jerk":0.05,"peff":0.473,"tcl":0.619},{"n":40,"ok":1,"tr":1,"jerk":0.0435,"peff":0.5139,"tcl":0.625},{"n":45,"ok":1,"tr":1,"jerk":0.0378,"peff":0.4199,"tcl":0.7333},{"n":49,"ok":1,"tr":1,"jerk":0.0447,"peff":0.5373,"tcl":0.6531},{"n":57,"ok":1,"tr":1,"jerk":0.0346,"peff":0.5524,"tcl":0.7368},{"n":48,"ok":1,"tr":1,"jerk":0.041,"peff":0.5355,"tcl":0.6667},{"n":57,"ok":1,"tr":1,"jerk":0.0358,"peff":0.4659,"tcl":0.7719},{"n":47,"ok":1,"tr":1,"jerk":0.0347,"peff":0.4981,"tcl":0.6809},{"n":47,"ok":1,"tr":1,"jerk":0.0396,"peff":0.492,"tcl":0.6596},{"n":52,"ok":1,"tr":1,"jerk":0.0361,"peff":0.5416,"tcl":0.6731},{"n":48,"ok":1,"tr":1,"jerk":0.0397,"peff":0.467,"tcl":0.6667},{"n":43,"ok":1,"tr":1,"jerk":0.0394,"peff":0.5601,"tcl":0.6744},{"n":46,"ok":1,"tr":1,"jerk":0.04,"peff":0.5633,"tcl":0.6957},{"n":49,"ok":1,"tr":1,"jerk":0.0371,"peff":0.5365,"tcl":0.6531},{"n":41,"ok":1,"tr":1,"jerk":0.0403,"peff":0.5299,"tcl":0.6585},{"n":55,"ok":1,"tr":1,"jerk":0.0386,"peff":0.5068,"tcl":0.7636},{"n":46,"ok":1,"tr":1,"jerk":0.038,"peff":0.5664,"tcl":0.7174},{"n":42,"ok":1,"tr":1,"jerk":0.0422,"peff":0.5723,"tcl":0.6429},{"n":59,"ok":1,"tr":1,"jerk":0.0311,"peff":0.4877,"tcl":0.7797},{"n":54,"ok":1,"tr":1,"jerk":0.0358,"peff":0.5203,"tcl":0.7037},{"n":48,"ok":1,"tr":1,"jerk":0.0392,"peff":0.6282,"tcl":0.6458},{"n":58,"ok":1,"tr":1,"jerk":0.0364,"peff":0.5147,"tcl":0.7414},{"n":45,"ok":1,"tr":1,"jerk":0.0443,"peff":0.566,"tcl":0.6889},{"n":50,"ok":1,"tr":1,"jerk":0.0426,"peff":0.5599,"tcl":0.72},{"n":49,"ok":1,"tr":1,"jerk":0.0399,"peff":0.5327,"tcl":0.6939},{"n":41,"ok":1,"tr":1,"jerk":0.0432,"peff":0.5287,"tcl":0.6585},{"n":51,"ok":1,"tr":1,"jerk":0.0518,"peff":0.6922,"tcl":0.7059},{"n":40,"ok":1,"tr":1,"jerk":0.0428,"peff":0.5139,"tcl":0.7},{"n":49,"ok":1,"tr":1,"jerk":0.0424,"peff":0.5133,"tcl":0.6327},{"n":53,"ok":1,"tr":1,"jerk":0.0343,"peff":0.4945,"tcl":0.717},{"n":39,"ok":1,"tr":1,"jerk":0.0453,"peff":0.547,"tcl":0.6923},{"n":46,"ok":1,"tr":1,"jerk":0.0376,"peff":0.5413,"tcl":0.6739},{"n":49,"ok":1,"tr":1,"jerk":0.0404,"peff":0.5108,"tcl":0.6939},{"n":47,"ok":1,"tr":1,"jerk":0.038,"peff":0.5131,"tcl":0.7021},{"n":40,"ok":1,"tr":1,"jerk":0.0356,"peff":0.5743,"tcl":0.625},{"n":53,"ok":1,"tr":1,"jerk":0.0526,"peff":0.5301,"tcl":0.717},{"n":48,"ok":1,"tr":1,"jerk":0.0395,"peff":0.5222,"tcl":0.6875},{"n":58,"ok":1,"tr":1,"jerk":0.0347,"peff":0.5392,"tcl":0.7241},{"n":45,"ok":1,"tr":1,"jerk":0.0454,"peff":0.5419,"tcl":0.6667},{"n":47,"ok":1,"tr":1,"jerk":0.0533,"peff":0.5649,"tcl":0.7021},{"n":46,"ok":1,"tr":1,"jerk":0.0369,"peff":0.6043,"tcl":0.6739},{"n":55,"ok":1,"tr":1,"jerk":0.0426,"peff":0.5379,"tcl":0.7636},{"n":43,"ok":1,"tr":1,"jerk":0.0439,"peff":0.5597,"tcl":0.6977},{"n":56,"ok":1,"tr":1,"jerk":0.0356,"peff":0.5485,"tcl":0.7679},{"n":40,"ok":1,"tr":1,"jerk":0.0466,"peff":0.6183,"tcl":0.65},{"n":38,"ok":1,"tr":1,"jerk":0.0455,"peff":0.5003,"tcl":0.6579},{"n":38,"ok":1,"tr":1,"jerk":0.0504,"peff":0.5743,"tcl":0.6579},{"n":44,"ok":1,"tr":1,"jerk":0.0457,"peff":0.5029,"tcl":0.7045},{"n":49,"ok":1,"tr":1,"jerk":0.0401,"peff":0.4795,"tcl":0.7347},{"n":42,"ok":1,"tr":1,"jerk":0.0585,"peff":0.5839,"tcl":0.6667},{"n":54,"ok":1,"tr":1,"jerk":0.0336,"peff":0.5607,"tcl":0.7037},{"n":41,"ok":1,"tr":1,"jerk":0.0409,"peff":0.5325,"tcl":0.6098},{"n":42,"ok":1,"tr":1,"jerk":0.043,"peff":0.4951,"tcl":0.6905},{"n":53,"ok":1,"tr":1,"jerk":0.0517,"peff":0.5945,"tcl":0.6415},{"n":38,"ok":1,"tr":1,"jerk":0.0682,"peff":0.5081,"tcl":0.6579},{"n":41,"ok":1,"tr":1,"jerk":0.0529,"peff":0.4992,"tcl":0.561},{"n":42,"ok":1,"tr":1,"jerk":0.0428,"peff":0.5037,"tcl":0.619},{"n":39,"ok":1,"tr":1,"jerk":0.0473,"peff":0.5525,"tcl":0.641},{"n":42,"ok":1,"tr":1,"jerk":0.0452,"peff":0.533,"tcl":0.6667},{"n":49,"ok":1,"tr":1,"jerk":0.048,"peff":0.4971,"tcl":0.6735},{"n":48,"ok":1,"tr":1,"jerk":0.04,"peff":0.5321,"tcl":0.6458},{"n":45,"ok":1,"tr":1,"jerk":0.0493,"peff":0.5518,"tcl":0.6667},{"n":38,"ok":1,"tr":1,"jerk":0.0561,"peff":0.5428,"tcl":0.6316},{"n":36,"ok":1,"tr":1,"jerk":0.0526,"peff":0.531,"tcl":0.6389},{"n":48,"ok":1,"tr":1,"jerk":0.0521,"peff":0.534,"tcl":0.7083},{"n":36,"ok":1,"tr":1,"jerk":0.0715,"peff":0.5083,"tcl":0.6389},{"n":48,"ok":1,"tr":1,"jerk":0.0476,"peff":0.5374,"tcl":0.6875},{"n":39,"ok":1,"tr":1,"jerk":0.0673,"peff":0.5535,"tcl":0.6667},{"n":44,"ok":1,"tr":1,"jerk":0.0474,"peff":0.5656,"tcl":0.7045},{"n":44,"ok":1,"tr":1,"jerk":0.0491,"peff":0.5692,"tcl":0.6136},{"n":44,"ok":1,"tr":1,"jerk":0.0374,"peff":0.5171,"tcl":0.6591},{"n":40,"ok":1,"tr":1,"jerk":0.0419,"peff":0.5209,"tcl":0.6},{"n":38,"ok":1,"tr":1,"jerk":0.0493,"peff":0.545,"tcl":0.5263},{"n":47,"ok":1,"tr":1,"jerk":0.0451,"peff":0.5652,"tcl":0.7021},{"n":52,"ok":1,"tr":1,"jerk":0.0314,"peff":0.6155,"tcl":0.7308},{"n":53,"ok":1,"tr":1,"jerk":0.0496,"peff":0.584,"tcl":0.7736},{"n":46,"ok":1,"tr":1,"jerk":0.0441,"peff":0.4816,"tcl":0.6957},{"n":38,"ok":1,"tr":1,"jerk":0.05,"peff":0.5652,"tcl":0.6579},{"n":39,"ok":1,"tr":1,"jerk":0.0485,"peff":0.5248,"tcl":0.6667},{"n":39,"ok":1,"tr":1,"jerk":0.0557,"peff":0.5724,"tcl":0.6667},{"n":41,"ok":1,"tr":1,"jerk":0.0489,"peff":0.5572,"tcl":0.6585},{"n":51,"ok":1,"tr":1,"jerk":0.0415,"peff":0.5698,"tcl":0.6863},{"n":42,"ok":1,"tr":1,"jerk":0.0444,"peff":0.63,"tcl":0.6905},{"n":37,"ok":1,"tr":1,"jerk":0.0483,"peff":0.5642,"tcl":0.5676},{"n":51,"ok":1,"tr":1,"jerk":0.0377,"peff":0.5538,"tcl":0.6863},{"n":50,"ok":1,"tr":1,"jerk":0.0397,"peff":0.4886,"tcl":0.6},{"n":51,"ok":1,"tr":1,"jerk":0.041,"peff":0.5191,"tcl":0.7451},{"n":46,"ok":1,"tr":1,"jerk":0.0405,"peff":0.5221,"tcl":0.7174},{"n":56,"ok":1,"tr":1,"jerk":0.036,"peff":0.531,"tcl":0.75},{"n":53,"ok":1,"tr":1,"jerk":0.0358,"peff":0.5315,"tcl":0.6792},{"n":46,"ok":1,"tr":1,"jerk":0.0428,"peff":0.5868,"tcl":0.7174},{"n":46,"ok":1,"tr":1,"jerk":0.0432,"peff":0.4907,"tcl":0.6957}],"mh":[{"n":48,"ok":1,"tr":1,"jerk":0.0352,"peff":0.5165,"tcl":0.6875},{"n":55,"ok":1,"tr":1,"jerk":0.0371,"peff":0.5243,"tcl":0.7273},{"n":49,"ok":1,"tr":1,"jerk":0.0334,"peff":0.5462,"tcl":0.6939},{"n":118,"ok":1,"tr":3,"jerk":0.0514,"peff":0.3976,"tcl":0.5},{"n":56,"ok":1,"tr":1,"jerk":0.0495,"peff":0.5094,"tcl":0.7143},{"n":78,"ok":1,"tr":1,"jerk":0.0427,"peff":0.44,"tcl":0.7692},{"n":71,"ok":1,"tr":1,"jerk":0.0492,"peff":0.5042,"tcl":0.7465},{"n":82,"ok":1,"tr":1,"jerk":0.0506,"peff":0.4949,"tcl":0.7805},{"n":55,"ok":1,"tr":1,"jerk":0.0768,"peff":0.598,"tcl":0.7455},{"n":72,"ok":1,"tr":1,"jerk":0.0367,"peff":0.4961,"tcl":0.7083},{"n":72,"ok":1,"tr":1,"jerk":0.0601,"peff":0.4293,"tcl":0.7639},{"n":109,"ok":1,"tr":3,"jerk":0.0478,"peff":0.2961,"tcl":0.4495},{"n":81,"ok":1,"tr":1,"jerk":0.0451,"peff":0.4568,"tcl":0.7284},{"n":48,"ok":1,"tr":1,"jerk":0.0404,"peff":0.5287,"tcl":0.7083},{"n":72,"ok":1,"tr":1,"jerk":0.0994,"peff":0.3253,"tcl":0.7083},{"n":68,"ok":1,"tr":1,"jerk":0.0468,"peff":0.4538,"tcl":0.7353},{"n":88,"ok":1,"tr":1,"jerk":0.0446,"peff":0.3721,"tcl":0.7727},{"n":69,"ok":1,"tr":1,"jerk":0.0391,"peff":0.4495,"tcl":0.7246},{"n":84,"ok":1,"tr":1,"jerk":0.0277,"peff":0.5484,"tcl":0.7976},{"n":106,"ok":1,"tr":1,"jerk":0.0755,"peff":0.4217,"tcl":0.8208},{"n":94,"ok":1,"tr":1,"jerk":0.0624,"peff":0.291,"tcl":0.7766},{"n":84,"ok":1,"tr":1,"jerk":0.069,"peff":0.4264,"tcl":0.7976},{"n":91,"ok":1,"tr":1,"jerk":0.0299,"peff":0.488,"tcl":0.8132},{"n":101,"ok":1,"tr":1,"jerk":0.0453,"peff":0.4722,"tcl":0.7921},{"n":48,"ok":1,"tr":1,"jerk":0.0332,"peff":0.6295,"tcl":0.7083},{"n":73,"ok":1,"tr":1,"jerk":0.0604,"peff":0.4522,"tcl":0.7671},{"n":71,"ok":1,"tr":1,"jerk":0.0515,"peff":0.492,"tcl":0.7042},{"n":82,"ok":1,"tr":1,"jerk":0.0415,"peff":0.4779,"tcl":0.7561},{"n":86,"ok":1,"tr":1,"jerk":0.0597,"peff":0.3494,"tcl":0.8256},{"n":112,"ok":1,"tr":3,"jerk":0.0456,"peff":0.4815,"tcl":0.4821},{"n":62,"ok":1,"tr":1,"jerk":0.0334,"peff":0.5951,"tcl":0.7097},{"n":76,"ok":1,"tr":1,"jerk":0.0467,"peff":0.4767,"tcl":0.75},{"n":77,"ok":1,"tr":1,"jerk":0.0526,"peff":0.3966,"tcl":0.7662},{"n":90,"ok":1,"tr":1,"jerk":0.0542,"peff":0.4001,"tcl":0.7778},{"n":79,"ok":1,"tr":1,"jerk":0.0681,"peff":0.4723,"tcl":0.8354},{"n":49,"ok":1,"tr":1,"jerk":0.0337,"peff":0.5731,"tcl":0.7143},{"n":67,"ok":1,"tr":1,"jerk":0.0586,"peff":0.5036,"tcl":0.7313},{"n":74,"ok":1,"tr":1,"jerk":0.043,"peff":0.5464,"tcl":0.7432},{"n":66,"ok":1,"tr":1,"jerk":0.0307,"peff":0.5975,"tcl":0.7121},{"n":72,"ok":1,"tr":1,"jerk":0.0485,"peff":0.4689,"tcl":0.6944},{"n":97,"ok":1,"tr":1,"jerk":0.0779,"peff":0.3389,"tcl":0.8351},{"n":74,"ok":1,"tr":1,"jerk":0.0389,"peff":0.4635,"tcl":0.7568},{"n":64,"ok":1,"tr":1,"jerk":0.0342,"peff":0.4864,"tcl":0.7344},{"n":72,"ok":1,"tr":1,"jerk":0.0388,"peff":0.5349,"tcl":0.7639},{"n":77,"ok":1,"tr":1,"jerk":0.0702,"peff":0.5296,"tcl":0.7532},{"n":82,"ok":1,"tr":1,"jerk":0.0507,"peff":0.4908,"tcl":0.7073},{"n":58,"ok":1,"tr":1,"jerk":0.0324,"peff":0.5271,"tcl":0.6379},{"n":90,"ok":1,"tr":1,"jerk":0.0667,"peff":0.3729,"tcl":0.7778},{"n":64,"ok":1,"tr":1,"jerk":0.0379,"peff":0.5398,"tcl":0.75},{"n":75,"ok":1,"tr":1,"jerk":0.0327,"peff":0.5791,"tcl":0.7867},{"n":77,"ok":1,"tr":1,"jerk":0.0477,"peff":0.5558,"tcl":0.7532},{"n":97,"ok":1,"tr":1,"jerk":0.0321,"peff":0.4274,"tcl":0.8041},{"n":115,"ok":1,"tr":3,"jerk":0.0572,"peff":0.2674,"tcl":0.487},{"n":68,"ok":1,"tr":1,"jerk":0.0643,"peff":0.386,"tcl":0.6912},{"n":81,"ok":1,"tr":1,"jerk":0.0553,"peff":0.443,"tcl":0.7531},{"n":78,"ok":1,"tr":1,"jerk":0.0292,"peff":0.443,"tcl":0.7179},{"n":74,"ok":1,"tr":1,"jerk":0.0259,"peff":0.6319,"tcl":0.7568},{"n":55,"ok":1,"tr":1,"jerk":0.0343,"peff":0.5422,"tcl":0.7273},{"n":101,"ok":1,"tr":1,"jerk":0.0211,"peff":0.6222,"tcl":0.8119},{"n":108,"ok":1,"tr":1,"jerk":0.0206,"peff":0.5617,"tcl":0.787},{"n":95,"ok":1,"tr":1,"jerk":0.0182,"peff":0.6098,"tcl":0.7579},{"n":93,"ok":1,"tr":1,"jerk":0.014,"peff":0.5904,"tcl":0.7312},{"n":96,"ok":1,"tr":1,"jerk":0.0172,"peff":0.6163,"tcl":0.75},{"n":97,"ok":1,"tr":1,"jerk":0.0161,"peff":0.6268,"tcl":0.7629},{"n":96,"ok":1,"tr":1,"jerk":0.0162,"peff":0.5851,"tcl":0.7708},{"n":103,"ok":1,"tr":1,"jerk":0.0223,"peff":0.5554,"tcl":0.7573},{"n":102,"ok":1,"tr":1,"jerk":0.0167,"peff":0.6044,"tcl":0.7647},{"n":108,"ok":1,"tr":1,"jerk":0.0175,"peff":0.5722,"tcl":0.787},{"n":46,"ok":1,"tr":1,"jerk":0.039,"peff":0.5601,"tcl":0.6957},{"n":92,"ok":1,"tr":1,"jerk":0.0242,"peff":0.6066,"tcl":0.7609},{"n":91,"ok":1,"tr":1,"jerk":0.0198,"peff":0.6273,"tcl":0.7912},{"n":100,"ok":1,"tr":1,"jerk":0.0168,"peff":0.615,"tcl":0.8},{"n":90,"ok":1,"tr":1,"jerk":0.0177,"peff":0.6698,"tcl":0.7333},{"n":95,"ok":1,"tr":1,"jerk":0.0157,"peff":0.6101,"tcl":0.7474},{"n":105,"ok":1,"tr":1,"jerk":0.0187,"peff":0.5758,"tcl":0.781},{"n":104,"ok":1,"tr":1,"jerk":0.0226,"peff":0.5316,"tcl":0.7885},{"n":80,"ok":1,"tr":1,"jerk":0.0297,"peff":0.6368,"tcl":0.7125},{"n":90,"ok":1,"tr":1,"jerk":0.0267,"peff":0.6015,"tcl":0.7444},{"n":95,"ok":1,"tr":1,"jerk":0.0316,"peff":0.5856,"tcl":0.7579},{"n":54,"ok":1,"tr":1,"jerk":0.0357,"peff":0.5339,"tcl":0.7407},{"n":95,"ok":1,"tr":1,"jerk":0.0302,"peff":0.5863,"tcl":0.7368},{"n":91,"ok":1,"tr":1,"jerk":0.0191,"peff":0.5868,"tcl":0.7473},{"n":88,"ok":1,"tr":1,"jerk":0.0221,"peff":0.5368,"tcl":0.7614},{"n":94,"ok":1,"tr":1,"jerk":0.0184,"peff":0.6197,"tcl":0.7553},{"n":95,"ok":1,"tr":1,"jerk":0.0174,"peff":0.6215,"tcl":0.7684},{"n":95,"ok":1,"tr":1,"jerk":0.0165,"peff":0.6064,"tcl":0.7789},{"n":97,"ok":1,"tr":1,"jerk":0.0183,"peff":0.6086,"tcl":0.7835},{"n":90,"ok":1,"tr":1,"jerk":0.0198,"peff":0.6621,"tcl":0.7667},{"n":81,"ok":1,"tr":1,"jerk":0.0201,"peff":0.5888,"tcl":0.7531},{"n":101,"ok":1,"tr":1,"jerk":0.0192,"peff":0.5315,"tcl":0.7624},{"n":46,"ok":1,"tr":1,"jerk":0.036,"peff":0.48,"tcl":0.6522},{"n":88,"ok":1,"tr":1,"jerk":0.0209,"peff":0.6128,"tcl":0.7614},{"n":89,"ok":1,"tr":1,"jerk":0.0163,"peff":0.657,"tcl":0.764},{"n":93,"ok":1,"tr":1,"jerk":0.0198,"peff":0.6098,"tcl":0.7849},{"n":99,"ok":1,"tr":1,"jerk":0.0178,"peff":0.5569,"tcl":0.798},{"n":89,"ok":1,"tr":1,"jerk":0.0152,"peff":0.6205,"tcl":0.764},{"n":100,"ok":1,"tr":1,"jerk":0.02,"peff":0.7024,"tcl":0.8},{"n":100,"ok":1,"tr":1,"jerk":0.0196,"peff":0.5675,"tcl":0.78},{"n":97,"ok":1,"tr":1,"jerk":0.0167,"peff":0.6017,"tcl":0.7629},{"n":100,"ok":1,"tr":1,"jerk":0.0186,"peff":0.5029,"tcl":0.79},{"n":88,"ok":1,"tr":1,"jerk":0.0226,"peff":0.6007,"tcl":0.7273},{"n":48,"ok":1,"tr":1,"jerk":0.0338,"peff":0.5448,"tcl":0.75},{"n":97,"ok":1,"tr":1,"jerk":0.0184,"peff":0.6018,"tcl":0.7629},{"n":94,"ok":1,"tr":1,"jerk":0.0243,"peff":0.5594,"tcl":0.7553},{"n":88,"ok":1,"tr":1,"jerk":0.0201,"peff":0.5801,"tcl":0.7045},{"n":95,"ok":1,"tr":1,"jerk":0.019,"peff":0.6165,"tcl":0.7579},{"n":86,"ok":1,"tr":1,"jerk":0.0222,"peff":0.5955,"tcl":0.7907},{"n":89,"ok":1,"tr":1,"jerk":0.0197,"peff":0.6438,"tcl":0.7528},{"n":108,"ok":1,"tr":1,"jerk":0.018,"peff":0.5497,"tcl":0.8241},{"n":91,"ok":1,"tr":1,"jerk":0.0184,"peff":0.5819,"tcl":0.7692},{"n":115,"ok":1,"tr":1,"jerk":0.0175,"peff":0.5256,"tcl":0.8174},{"n":88,"ok":1,"tr":1,"jerk":0.0189,"peff":0.6723,"tcl":0.7841},{"n":46,"ok":1,"tr":1,"jerk":0.0334,"peff":0.6257,"tcl":0.7391},{"n":59,"ok":1,"tr":1,"jerk":0.0299,"peff":0.5362,"tcl":0.7288},{"n":125,"ok":1,"tr":1,"jerk":0.0393,"peff":0.2379,"tcl":0.768},{"n":76,"ok":1,"tr":1,"jerk":0.0542,"peff":0.3366,"tcl":0.7763},{"n":166,"ok":1,"tr":1,"jerk":0.0721,"peff":0.2657,"tcl":0.9036},{"n":100,"ok":1,"tr":1,"jerk":0.0388,"peff":0.3993,"tcl":0.83},{"n":140,"ok":1,"tr":3,"jerk":0.0398,"peff":0.2803,"tcl":0.4571},{"n":106,"ok":1,"tr":1,"jerk":0.1157,"peff":0.3134,"tcl":0.8585},{"n":118,"ok":1,"tr":1,"jerk":0.09,"peff":0.2087,"tcl":0.8136},{"n":126,"ok":1,"tr":1,"jerk":0.0403,"peff":0.2788,"tcl":0.8413},{"n":91,"ok":1,"tr":1,"jerk":0.0436,"peff":0.4137,"tcl":0.8242},{"n":82,"ok":1,"tr":1,"jerk":0.0638,"peff":0.3554,"tcl":0.8049},{"n":45,"ok":1,"tr":1,"jerk":0.0393,"peff":0.5291,"tcl":0.6444},{"n":89,"ok":1,"tr":1,"jerk":0.0551,"peff":0.3269,"tcl":0.7978},{"n":96,"ok":1,"tr":1,"jerk":0.0422,"peff":0.4181,"tcl":0.7708},{"n":124,"ok":1,"tr":1,"jerk":0.0443,"peff":0.2723,"tcl":0.8629},{"n":182,"ok":1,"tr":5,"jerk":0.0446,"peff":0.2213,"tcl":0.3626},{"n":119,"ok":1,"tr":1,"jerk":0.0667,"peff":0.3535,"tcl":0.8571},{"n":82,"ok":1,"tr":1,"jerk":0.0491,"peff":0.3905,"tcl":0.7683},{"n":96,"ok":1,"tr":1,"jerk":0.0476,"peff":0.2361,"tcl":0.7708},{"n":88,"ok":1,"tr":1,"jerk":0.0451,"peff":0.3429,"tcl":0.7727},{"n":87,"ok":1,"tr":1,"jerk":0.0918,"peff":0.357,"tcl":0.8276},{"n":84,"ok":1,"tr":1,"jerk":0.0577,"peff":0.4331,"tcl":0.7976},{"n":44,"ok":1,"tr":1,"jerk":0.0409,"peff":0.5453,"tcl":0.7045},{"n":122,"ok":1,"tr":3,"jerk":0.0438,"peff":0.3685,"tcl":0.541},{"n":106,"ok":1,"tr":1,"jerk":0.0476,"peff":0.2529,"tcl":0.8208},{"n":149,"ok":1,"tr":1,"jerk":0.0372,"peff":0.2571,"tcl":0.9128},{"n":93,"ok":1,"tr":1,"jerk":0.0692,"peff":0.3919,"tcl":0.7957},{"n":110,"ok":1,"tr":1,"jerk":0.0458,"peff":0.3232,"tcl":0.8091},{"n":114,"ok":1,"tr":1,"jerk":0.0646,"peff":0.288,"tcl":0.8333},{"n":107,"ok":1,"tr":1,"jerk":0.0445,"peff":0.3632,"tcl":0.8131},{"n":106,"ok":1,"tr":1,"jerk":0.0505,"peff":0.4009,"tcl":0.783},{"n":210,"ok":1,"tr":3,"jerk":0.0542,"peff":0.2107,"tcl":0.7048},{"n":125,"ok":1,"tr":1,"jerk":0.0341,"peff":0.4295,"tcl":0.864},{"n":52,"ok":1,"tr":1,"jerk":0.034,"peff":0.4995,"tcl":0.7115},{"n":150,"ok":1,"tr":1,"jerk":0.0426,"peff":0.4,"tcl":0.8733},{"n":133,"ok":1,"tr":1,"jerk":0.0337,"peff":0.4187,"tcl":0.8421},{"n":131,"ok":1,"tr":1,"jerk":0.0424,"peff":0.4008,"tcl":0.8397},{"n":122,"ok":1,"tr":1,"jerk":0.0536,"peff":0.338,"tcl":0.8115},{"n":111,"ok":1,"tr":1,"jerk":0.0253,"peff":0.518,"tcl":0.8198},{"n":156,"ok":1,"tr":1,"jerk":0.0801,"peff":0.3154,"tcl":0.8718},{"n":234,"ok":1,"tr":3,"jerk":0.0481,"peff":0.2093,"tcl":0.5128},{"n":106,"ok":1,"tr":1,"jerk":0.0347,"peff":0.4703,"tcl":0.8019},{"n":95,"ok":1,"tr":1,"jerk":0.0561,"peff":0.4364,"tcl":0.8},{"n":107,"ok":1,"tr":1,"jerk":0.0479,"peff":0.334,"tcl":0.729},{"n":48,"ok":1,"tr":1,"jerk":0.0393,"peff":0.5472,"tcl":0.6875},{"n":107,"ok":1,"tr":1,"jerk":0.0254,"peff":0.4516,"tcl":0.8037},{"n":303,"ok":1,"tr":7,"jerk":0.0512,"peff":0.1429,"tcl":0.2079},{"n":121,"ok":1,"tr":1,"jerk":0.0633,"peff":0.3483,"tcl":0.7934},{"n":133,"ok":1,"tr":1,"jerk":0.0229,"peff":0.4223,"tcl":0.8496},{"n":118,"ok":1,"tr":1,"jerk":0.0241,"peff":0.4058,"tcl":0.839},{"n":120,"ok":1,"tr":1,"jerk":0.0345,"peff":0.4571,"tcl":0.825},{"n":140,"ok":1,"tr":1,"jerk":0.0687,"peff":0.3566,"tcl":0.85},{"n":158,"ok":1,"tr":3,"jerk":0.0435,"peff":0.2273,"tcl":0.5506},{"n":159,"ok":1,"tr":3,"jerk":0.0515,"peff":0.2446,"tcl":0.4025},{"n":80,"ok":1,"tr":1,"jerk":0.0482,"peff":0.421,"tcl":0.7625},{"n":56,"ok":1,"tr":1,"jerk":0.0334,"peff":0.6194,"tcl":0.6607},{"n":100,"ok":1,"tr":1,"jerk":0.0578,"peff":0.334,"tcl":0.8},{"n":72,"ok":1,"tr":1,"jerk":0.0362,"peff":0.4471,"tcl":0.7222},{"n":118,"ok":1,"tr":1,"jerk":0.0523,"peff":0.37,"tcl":0.8136},{"n":96,"ok":1,"tr":1,"jerk":0.036,"peff":0.4364,"tcl":0.75},{"n":140,"ok":1,"tr":1,"jerk":0.0488,"peff":0.3571,"tcl":0.8143},{"n":129,"ok":1,"tr":1,"jerk":0.0411,"peff":0.4148,"tcl":0.8062},{"n":101,"ok":1,"tr":1,"jerk":0.0383,"peff":0.4152,"tcl":0.7921},{"n":96,"ok":1,"tr":1,"jerk":0.032,"peff":0.5428,"tcl":0.8021},{"n":132,"ok":1,"tr":1,"jerk":0.0295,"peff":0.3752,"tcl":0.8182},{"n":313,"ok":1,"tr":1,"jerk":0.0897,"peff":0.1076,"tcl":0.9393},{"n":47,"ok":1,"tr":1,"jerk":0.0403,"peff":0.5719,"tcl":0.6809},{"n":100,"ok":1,"tr":1,"jerk":0.027,"peff":0.4207,"tcl":0.82},{"n":87,"ok":1,"tr":1,"jerk":0.0725,"peff":0.4229,"tcl":0.7701},{"n":101,"ok":1,"tr":1,"jerk":0.0651,"peff":0.345,"tcl":0.7822},{"n":102,"ok":1,"tr":1,"jerk":0.05,"peff":0.4479,"tcl":0.7941},{"n":97,"ok":1,"tr":1,"jerk":0.0419,"peff":0.3585,"tcl":0.8144},{"n":94,"ok":1,"tr":1,"jerk":0.0327,"peff":0.4139,"tcl":0.7872},{"n":137,"ok":1,"tr":1,"jerk":0.0354,"peff":0.4443,"tcl":0.8613},{"n":80,"ok":1,"tr":1,"jerk":0.0358,"peff":0.5076,"tcl":0.7875},{"n":106,"ok":1,"tr":3,"jerk":0.051,"peff":0.457,"tcl":0.6226},{"n":98,"ok":1,"tr":1,"jerk":0.0379,"peff":0.4922,"tcl":0.7857},{"n":51,"ok":1,"tr":1,"jerk":0.0355,"peff":0.5239,"tcl":0.7451},{"n":77,"ok":1,"tr":1,"jerk":0.0588,"peff":0.4485,"tcl":0.7403},{"n":105,"ok":1,"tr":1,"jerk":0.076,"peff":0.4239,"tcl":0.8095},{"n":104,"ok":1,"tr":1,"jerk":0.0402,"peff":0.4695,"tcl":0.7885},{"n":95,"ok":1,"tr":1,"jerk":0.0267,"peff":0.4305,"tcl":0.8211},{"n":86,"ok":1,"tr":1,"jerk":0.04,"peff":0.446,"tcl":0.7674},{"n":81,"ok":1,"tr":1,"jerk":0.0393,"peff":0.4423,"tcl":0.7531},{"n":99,"ok":1,"tr":1,"jerk":0.0349,"peff":0.3453,"tcl":0.7576},{"n":112,"ok":1,"tr":1,"jerk":0.0317,"peff":0.3043,"tcl":0.8036},{"n":183,"ok":1,"tr":2,"jerk":0.0515,"peff":0.2159,"tcl":0.8743}],"mg":[{"n":150,"ok":0,"tr":77,"jerk":0.7597,"peff":0.0657,"tcl":0.04},{"n":150,"ok":0,"tr":82,"jerk":0.6781,"peff":0.195,"tcl":0.0133},{"n":150,"ok":0,"tr":76,"jerk":0.7133,"peff":0.1148,"tcl":0.0133},{"n":150,"ok":0,"tr":4,"jerk":0.3303,"peff":0.1501,"tcl":0.4667},{"n":150,"ok":1,"tr":42,"jerk":0.4428,"peff":0.237,"tcl":0.1267},{"n":150,"ok":0,"tr":36,"jerk":0.332,"peff":0.203,"tcl":0.12},{"n":150,"ok":1,"tr":27,"jerk":0.4293,"peff":0.1267,"tcl":0.4067},{"n":150,"ok":0,"tr":49,"jerk":0.3861,"peff":0.1932,"tcl":0.1133},{"n":150,"ok":0,"tr":60,"jerk":0.396,"peff":0.2078,"tcl":0.1067},{"n":150,"ok":0,"tr":26,"jerk":0.339,"peff":0.3073,"tcl":0.1067},{"n":150,"ok":0,"tr":59,"jerk":0.5211,"peff":0.1532,"tcl":0.1467},{"n":150,"ok":1,"tr":11,"jerk":0.17,"peff":0.3574,"tcl":0.1067},{"n":150,"ok":0,"tr":28,"jerk":0.3097,"peff":0.2319,"tcl":0.0933},{"n":150,"ok":0,"tr":75,"jerk":0.7422,"peff":0.1376,"tcl":0.0133},{"n":150,"ok":0,"tr":35,"jerk":0.3521,"peff":0.089,"tcl":0.1533},{"n":150,"ok":0,"tr":12,"jerk":0.3066,"peff":0.3281,"tcl":0.0933},{"n":150,"ok":0,"tr":42,"jerk":0.3825,"peff":0.3544,"tcl":0.1067},{"n":150,"ok":0,"tr":30,"jerk":0.4138,"peff":0.0805,"tcl":0.2667},{"n":150,"ok":0,"tr":12,"jerk":0.3437,"peff":0.2357,"tcl":0.2},{"n":150,"ok":0,"tr":18,"jerk":0.3446,"peff":0.1171,"tcl":0.1333},{"n":150,"ok":0,"tr":4,"jerk":0.281,"peff":0.1656,"tcl":0.3867},{"n":150,"ok":0,"tr":32,"jerk":0.3695,"peff":0.1692,"tcl":0.1},{"n":150,"ok":0,"tr":24,"jerk":0.3183,"peff":0.2893,"tcl":0.3667},{"n":150,"ok":1,"tr":23,"jerk":0.2128,"peff":0.2133,"tcl":0.0933},{"n":150,"ok":0,"tr":73,"jerk":0.7221,"peff":0.1233,"tcl":0.04},{"n":150,"ok":0,"tr":20,"jerk":0.4083,"peff":0.1939,"tcl":0.1067},{"n":150,"ok":0,"tr":50,"jerk":0.375,"peff":0.2652,"tcl":0.0867},{"n":150,"ok":1,"tr":46,"jerk":0.4088,"peff":0.232,"tcl":0.1333},{"n":150,"ok":1,"tr":17,"jerk":0.2609,"peff":0.2573,"tcl":0.1},{"n":150,"ok":1,"tr":31,"jerk":0.3844,"peff":0.1447,"tcl":0.1467},{"n":150,"ok":0,"tr":16,"jerk":0.3445,"peff":0.2283,"tcl":0.3267},{"n":150,"ok":0,"tr":16,"jerk":0.3937,"peff":0.1724,"tcl":0.1067},{"n":150,"ok":0,"tr":23,"jerk":0.38,"peff":0.2494,"tcl":0.1133},{"n":150,"ok":0,"tr":10,"jerk":0.3044,"peff":0.2751,"tcl":0.0867},{"n":150,"ok":1,"tr":27,"jerk":0.372,"peff":0.1862,"tcl":0.0933},{"n":150,"ok":0,"tr":73,"jerk":0.7381,"peff":0.1592,"tcl":0.0133},{"n":150,"ok":0,"tr":16,"jerk":0.3864,"peff":0.227,"tcl":0.2},{"n":150,"ok":0,"tr":42,"jerk":0.3316,"peff":0.2399,"tcl":0.1067},{"n":150,"ok":1,"tr":11,"jerk":0.2018,"peff":0.3051,"tcl":0.0867},{"n":150,"ok":0,"tr":47,"jerk":0.3767,"peff":0.2851,"tcl":0.1067},{"n":150,"ok":1,"tr":11,"jerk":0.2386,"peff":0.2245,"tcl":0.12},{"n":150,"ok":1,"tr":10,"jerk":0.2867,"peff":0.2151,"tcl":0.2},{"n":150,"ok":1,"tr":35,"jerk":0.2678,"peff":0.2953,"tcl":0.0867},{"n":150,"ok":0,"tr":30,"jerk":0.3465,"peff":0.1278,"tcl":0.1533},{"n":150,"ok":0,"tr":24,"jerk":0.3052,"peff":0.2977,"tcl":0.1533},{"n":150,"ok":0,"tr":46,"jerk":0.3438,"peff":0.2407,"tcl":0.0933},{"n":150,"ok":0,"tr":80,"jerk":0.7211,"peff":0.0989,"tcl":0.0067},{"n":150,"ok":0,"tr":49,"jerk":0.3181,"peff":0.2885,"tcl":0.14},{"n":150,"ok":0,"tr":51,"jerk":0.3517,"peff":0.2696,"tcl":0.1133},{"n":150,"ok":0,"tr":25,"jerk":0.2974,"peff":0.1385,"tcl":0.5},{"n":150,"ok":0,"tr":12,"jerk":0.3699,"peff":0.1519,"tcl":0.2667},{"n":150,"ok":1,"tr":22,"jerk":0.3106,"peff":0.359,"tcl":0.0067},{"n":150,"ok":0,"tr":42,"jerk":0.4257,"peff":0.1555,"tcl":0.22},{"n":150,"ok":0,"tr":32,"jerk":0.4546,"peff":0.1243,"tcl":0.12},{"n":150,"ok":1,"tr":31,"jerk":0.2415,"peff":0.3833,"tcl":0.0933},{"n":150,"ok":0,"tr":2,"jerk":0.3587,"peff":0.2109,"tcl":0.0933},{"n":150,"ok":1,"tr":5,"jerk":0.156,"peff":0.3245,"tcl":0.1133},{"n":150,"ok":0,"tr":69,"jerk":0.7108,"peff":0.0757,"tcl":0.0133},{"n":150,"ok":0,"tr":12,"jerk":0.3162,"peff":0.2578,"tcl":0.0933},{"n":150,"ok":0,"tr":22,"jerk":0.3257,"peff":0.2092,"tcl":0.1067},{"n":150,"ok":0,"tr":14,"jerk":0.3812,"peff":0.1538,"tcl":0.3667},{"n":150,"ok":0,"tr":54,"jerk":0.3607,"peff":0.2767,"tcl":0.1267},{"n":150,"ok":0,"tr":22,"jerk":0.3248,"peff":0.2656,"tcl":0.1667},{"n":150,"ok":1,"tr":10,"jerk":0.3313,"peff":0.2462,"tcl":0.24},{"n":150,"ok":0,"tr":4,"jerk":0.2873,"peff":0.1547,"tcl":0.7933},{"n":150,"ok":1,"tr":7,"jerk":0.1654,"peff":0.3556,"tcl":0.24},{"n":150,"ok":0,"tr":52,"jerk":0.3893,"peff":0.2225,"tcl":0.1067},{"n":150,"ok":0,"tr":8,"jerk":0.3685,"peff":0.2084,"tcl":0.2533},{"n":150,"ok":0,"tr":77,"jerk":0.7157,"peff":0.1624,"tcl":0.0067},{"n":150,"ok":1,"tr":13,"jerk":0.164,"peff":0.3211,"tcl":0.0933},{"n":150,"ok":0,"tr":51,"jerk":0.3714,"peff":0.2198,"tcl":0.1},{"n":150,"ok":0,"tr":14,"jerk":0.3628,"peff":0.2489,"tcl":0.1},{"n":150,"ok":0,"tr":8,"jerk":0.3115,"peff":0.1559,"tcl":0.1},{"n":150,"ok":0,"tr":18,"jerk":0.3911,"peff":0.1083,"tcl":0.26},{"n":150,"ok":0,"tr":19,"jerk":0.3614,"peff":0.2829,"tcl":0.1133},{"n":150,"ok":0,"tr":15,"jerk":0.323,"peff":0.2406,"tcl":0.1067},{"n":150,"ok":0,"tr":60,"jerk":0.3838,"peff":0.299,"tcl":0.0867},{"n":150,"ok":1,"tr":35,"jerk":0.2779,"peff":0.3235,"tcl":0.1067},{"n":150,"ok":0,"tr":16,"jerk":0.3349,"peff":0.1569,"tcl":0.14},{"n":150,"ok":0,"tr":73,"jerk":0.7014,"peff":0.0955,"tcl":0.0133},{"n":150,"ok":1,"tr":25,"jerk":0.2859,"peff":0.2308,"tcl":0.1},{"n":150,"ok":0,"tr":28,"jerk":0.2996,"peff":0.2911,"tcl":0.2867},{"n":150,"ok":0,"tr":18,"jerk":0.3245,"peff":0.2363,"tcl":0.1},{"n":150,"ok":0,"tr":26,"jerk":0.3942,"peff":0.1717,"tcl":0.32},{"n":150,"ok":0,"tr":44,"jerk":0.4386,"peff":0.2117,"tcl":0.1133},{"n":150,"ok":1,"tr":3,"jerk":0.2257,"peff":0.305,"tcl":0.1467},{"n":150,"ok":1,"tr":7,"jerk":0.2277,"peff":0.2539,"tcl":0.0867},{"n":150,"ok":0,"tr":18,"jerk":0.3441,"peff":0.2836,"tcl":0.1133},{"n":150,"ok":0,"tr":64,"jerk":0.394,"peff":0.2355,"tcl":0.1},{"n":150,"ok":0,"tr":11,"jerk":0.3345,"peff":0.2639,"tcl":0.3667},{"n":150,"ok":0,"tr":75,"jerk":0.7206,"peff":0.1117,"tcl":0.0133},{"n":150,"ok":0,"tr":19,"jerk":0.4372,"peff":0.1553,"tcl":0.1},{"n":150,"ok":1,"tr":9,"jerk":0.1723,"peff":0.3438,"tcl":0.1333},{"n":150,"ok":0,"tr":20,"jerk":0.4134,"peff":0.2082,"tcl":0.1267},{"n":150,"ok":0,"tr":50,"jerk":0.4197,"peff":0.2483,"tcl":0.1467},{"n":150,"ok":1,"tr":43,"jerk":0.351,"peff":0.1147,"tcl":0.1},{"n":150,"ok":1,"tr":12,"jerk":0.3328,"peff":0.2471,"tcl":0.1333},{"n":150,"ok":0,"tr":8,"jerk":0.2988,"peff":0.2933,"tcl":0.12},{"n":150,"ok":1,"tr":8,"jerk":0.3075,"peff":0.2492,"tcl":0.1},{"n":150,"ok":0,"tr":39,"jerk":0.3499,"peff":0.2667,"tcl":0.0867},{"n":150,"ok":0,"tr":10,"jerk":0.4245,"peff":0.2038,"tcl":0.12},{"n":150,"ok":0,"tr":62,"jerk":0.7258,"peff":0.1819,"tcl":0.0133},{"n":150,"ok":0,"tr":28,"jerk":0.3466,"peff":0.2073,"tcl":0.1533},{"n":150,"ok":0,"tr":25,"jerk":0.3017,"peff":0.2938,"tcl":0.1467},{"n":150,"ok":0,"tr":0,"jerk":0.3535,"peff":0.2508,"tcl":1.0},{"n":150,"ok":0,"tr":2,"jerk":0.3096,"peff":0.1657,"tcl":0.1733},{"n":150,"ok":0,"tr":8,"jerk":0.3507,"peff":0.2809,"tcl":0.2267},{"n":150,"ok":1,"tr":17,"jerk":0.1737,"peff":0.3415,"tcl":0.0733},{"n":150,"ok":0,"tr":30,"jerk":0.3536,"peff":0.2735,"tcl":0.2267},{"n":150,"ok":1,"tr":29,"jerk":0.3323,"peff":0.247,"tcl":0.1},{"n":150,"ok":0,"tr":37,"jerk":0.3299,"peff":0.2426,"tcl":0.0933},{"n":150,"ok":1,"tr":15,"jerk":0.2105,"peff":0.3087,"tcl":0.1},{"n":150,"ok":0,"tr":78,"jerk":0.7461,"peff":0.0762,"tcl":0.0267},{"n":150,"ok":0,"tr":72,"jerk":0.7301,"peff":0.1086,"tcl":0.0067},{"n":150,"ok":1,"tr":27,"jerk":0.2548,"peff":0.2701,"tcl":0.1},{"n":150,"ok":1,"tr":7,"jerk":0.1715,"peff":0.3202,"tcl":0.18},{"n":150,"ok":1,"tr":47,"jerk":0.2575,"peff":0.1926,"tcl":0.12},{"n":150,"ok":0,"tr":6,"jerk":0.2913,"peff":0.1348,"tcl":0.3867},{"n":150,"ok":0,"tr":22,"jerk":0.3848,"peff":0.1657,"tcl":0.22},{"n":150,"ok":0,"tr":58,"jerk":0.3314,"peff":0.2803,"tcl":0.0867},{"n":150,"ok":0,"tr":0,"jerk":0.4264,"peff":0.1703,"tcl":1.0},{"n":150,"ok":0,"tr":24,"jerk":0.3537,"peff":0.2076,"tcl":0.3133},{"n":150,"ok":1,"tr":15,"jerk":0.1822,"peff":0.3623,"tcl":0.0867},{"n":150,"ok":0,"tr":21,"jerk":0.3279,"peff":0.2228,"tcl":0.1333},{"n":150,"ok":0,"tr":74,"jerk":0.6988,"peff":0.073,"tcl":0.02},{"n":150,"ok":0,"tr":16,"jerk":0.3556,"peff":0.2486,"tcl":0.1},{"n":150,"ok":0,"tr":24,"jerk":0.3311,"peff":0.2761,"tcl":0.14},{"n":150,"ok":1,"tr":17,"jerk":0.2051,"peff":0.318,"tcl":0.0933},{"n":150,"ok":0,"tr":0,"jerk":0.4038,"peff":0.1986,"tcl":1.0},{"n":150,"ok":1,"tr":15,"jerk":0.2927,"peff":0.2821,"tcl":0.3867},{"n":150,"ok":0,"tr":10,"jerk":0.3103,"peff":0.2395,"tcl":0.1667},{"n":150,"ok":1,"tr":1,"jerk":0.1404,"peff":0.312,"tcl":0.08},{"n":150,"ok":0,"tr":48,"jerk":0.4124,"peff":0.2108,"tcl":0.1333},{"n":150,"ok":0,"tr":16,"jerk":0.349,"peff":0.0773,"tcl":0.6733},{"n":150,"ok":0,"tr":20,"jerk":0.365,"peff":0.2217,"tcl":0.12},{"n":150,"ok":0,"tr":73,"jerk":0.7171,"peff":0.1173,"tcl":0.02},{"n":150,"ok":0,"tr":14,"jerk":0.3499,"peff":0.2108,"tcl":0.1067},{"n":150,"ok":0,"tr":2,"jerk":0.4394,"peff":0.1306,"tcl":0.2133},{"n":150,"ok":0,"tr":22,"jerk":0.3422,"peff":0.2215,"tcl":0.0933},{"n":150,"ok":0,"tr":38,"jerk":0.4262,"peff":0.1891,"tcl":0.12},{"n":150,"ok":0,"tr":40,"jerk":0.3598,"peff":0.2363,"tcl":0.1067},{"n":150,"ok":0,"tr":16,"jerk":0.3993,"peff":0.178,"tcl":0.0867},{"n":150,"ok":0,"tr":36,"jerk":0.3339,"peff":0.1842,"tcl":0.14},{"n":150,"ok":1,"tr":8,"jerk":0.27,"peff":0.1388,"tcl":0.1067},{"n":150,"ok":1,"tr":49,"jerk":0.3302,"peff":0.2172,"tcl":0.1067},{"n":150,"ok":0,"tr":48,"jerk":0.3466,"peff":0.2522,"tcl":0.0867},{"n":150,"ok":0,"tr":82,"jerk":0.7144,"peff":0.0935,"tcl":0.02},{"n":150,"ok":0,"tr":38,"jerk":0.3528,"peff":0.1868,"tcl":0.14},{"n":150,"ok":0,"tr":16,"jerk":0.4295,"peff":0.2341,"tcl":0.1133},{"n":150,"ok":0,"tr":44,"jerk":0.3976,"peff":0.2103,"tcl":0.1},{"n":150,"ok":0,"tr":27,"jerk":0.3705,"peff":0.1845,"tcl":0.14},{"n":150,"ok":0,"tr":25,"jerk":0.3822,"peff":0.1994,"tcl":0.1},{"n":150,"ok":0,"tr":30,"jerk":0.3741,"peff":0.2127,"tcl":0.1067},{"n":150,"ok":0,"tr":28,"jerk":0.305,"peff":0.3073,"tcl":0.0867},{"n":150,"ok":0,"tr":14,"jerk":0.3428,"peff":0.2877,"tcl":0.1267},{"n":150,"ok":1,"tr":9,"jerk":0.206,"peff":0.2845,"tcl":0.3},{"n":150,"ok":0,"tr":16,"jerk":0.4083,"peff":0.2156,"tcl":0.1467},{"n":150,"ok":0,"tr":71,"jerk":0.7172,"peff":0.1365,"tcl":0.0133},{"n":150,"ok":1,"tr":0,"jerk":0.3031,"peff":0.2678,"tcl":1.0},{"n":150,"ok":1,"tr":9,"jerk":0.1694,"peff":0.3129,"tcl":0.1267},{"n":150,"ok":1,"tr":28,"jerk":0.3498,"peff":0.2184,"tcl":0.1},{"n":150,"ok":0,"tr":48,"jerk":0.2986,"peff":0.3373,"tcl":0.1067},{"n":150,"ok":0,"tr":38,"jerk":0.4613,"peff":0.1623,"tcl":0.1867},{"n":150,"ok":0,"tr":2,"jerk":0.2717,"peff":0.2394,"tcl":0.1},{"n":150,"ok":0,"tr":17,"jerk":0.3313,"peff":0.1206,"tcl":0.7933},{"n":150,"ok":0,"tr":8,"jerk":0.3204,"peff":0.2379,"tcl":0.1067},{"n":150,"ok":0,"tr":40,"jerk":0.3836,"peff":0.2313,"tcl":0.0933},{"n":150,"ok":0,"tr":50,"jerk":0.4264,"peff":0.2207,"tcl":0.1067},{"n":150,"ok":0,"tr":79,"jerk":0.7313,"peff":0.12,"tcl":0.0067},{"n":150,"ok":1,"tr":13,"jerk":0.2347,"peff":0.3142,"tcl":0.2333},{"n":150,"ok":0,"tr":43,"jerk":0.3776,"peff":0.1836,"tcl":0.1133},{"n":150,"ok":0,"tr":2,"jerk":0.2977,"peff":0.229,"tcl":0.8},{"n":150,"ok":0,"tr":51,"jerk":0.3326,"peff":0.2326,"tcl":0.1133},{"n":150,"ok":0,"tr":0,"jerk":0.2802,"peff":0.2774,"tcl":1.0},{"n":150,"ok":0,"tr":58,"jerk":0.378,"peff":0.2319,"tcl":0.1267},{"n":150,"ok":0,"tr":0,"jerk":0.3389,"peff":0.2406,"tcl":1.0},{"n":150,"ok":0,"tr":28,"jerk":0.3466,"peff":0.2534,"tcl":0.12},{"n":150,"ok":0,"tr":8,"jerk":0.3299,"peff":0.1517,"tcl":0.46},{"n":150,"ok":0,"tr":45,"jerk":0.3664,"peff":0.2143,"tcl":0.1267},{"n":150,"ok":0,"tr":69,"jerk":0.6911,"peff":0.087,"tcl":0.0133},{"n":150,"ok":1,"tr":13,"jerk":0.2514,"peff":0.3393,"tcl":0.1067},{"n":150,"ok":1,"tr":13,"jerk":0.2026,"peff":0.277,"tcl":0.1333},{"n":150,"ok":1,"tr":24,"jerk":0.2788,"peff":0.2879,"tcl":0.12},{"n":150,"ok":0,"tr":4,"jerk":0.3719,"peff":0.2362,"tcl":0.0933},{"n":150,"ok":0,"tr":15,"jerk":0.359,"peff":0.1561,"tcl":0.0733},{"n":150,"ok":0,"tr":56,"jerk":0.3872,"peff":0.2709,"tcl":0.1067},{"n":150,"ok":1,"tr":20,"jerk":0.2778,"peff":0.3296,"tcl":0.1067},{"n":150,"ok":0,"tr":14,"jerk":0.3188,"peff":0.1392,"tcl":0.1333},{"n":150,"ok":0,"tr":43,"jerk":0.3514,"peff":0.1989,"tcl":0.0867},{"n":150,"ok":0,"tr":8,"jerk":0.3148,"peff":0.2678,"tcl":0.1067},{"n":150,"ok":0,"tr":70,"jerk":0.7248,"peff":0.0609,"tcl":0.04},{"n":150,"ok":0,"tr":43,"jerk":0.3967,"peff":0.0965,"tcl":0.18},{"n":150,"ok":1,"tr":47,"jerk":0.3487,"peff":0.2249,"tcl":0.1067},{"n":150,"ok":0,"tr":8,"jerk":0.3672,"peff":0.2219,"tcl":0.1267},{"n":150,"ok":0,"tr":42,"jerk":0.3245,"peff":0.1562,"tcl":0.1},{"n":150,"ok":0,"tr":30,"jerk":0.3691,"peff":0.176,"tcl":0.38},{"n":150,"ok":1,"tr":16,"jerk":0.3404,"peff":0.2959,"tcl":0.1067},{"n":150,"ok":0,"tr":26,"jerk":0.389,"peff":0.193,"tcl":0.16},{"n":150,"ok":0,"tr":20,"jerk":0.3822,"peff":0.1393,"tcl":0.2267},{"n":150,"ok":0,"tr":44,"jerk":0.3281,"peff":0.2317,"tcl":0.12}]},"results":{"ph":{"name":"PH, one expert","prog":34.83,"ci":[28.7,41.7],"succ":15,"reach":91,"grasp":23,"funnel":{"reach":0.91,"grasp":0.253,"lift":1.0,"place":0.652},"loss":1.104,"diag":"Reaches the cube in 91 of 100 scenes, then fails to close the grip in three quarters of them.","bottleneck":"grasp","uplift":41.4},"mh":{"name":"MH, six operators","prog":24.2,"ci":[19.3,29.9],"succ":10,"reach":84,"grasp":12,"funnel":{"reach":0.84,"grasp":0.143,"lift":1.0,"place":0.833},"loss":1.084,"diag":"Weaker on reaching than the expert set, and grips even less often once it arrives.","bottleneck":"grasp","uplift":38.0},"mg":{"name":"MG, an RL agent","prog":4.85,"ci":[3.8,6.0],"succ":0,"reach":20,"grasp":0,"funnel":{"reach":0.2,"grasp":0.0,"lift":0.0,"place":0.0},"loss":1.413,"diag":"Reaches the cube in only 1 scene in 5 and never grips. Level with random movement.","bottleneck":"data","uplift":0}},"recipe":[{"n":2,"p":26.02,"g":14},{"n":4,"p":40.71,"g":32},{"n":8,"p":34.83,"g":23},{"n":16,"p":35.24,"g":22}],"anneal":{"baseline":40.71,"targeted":43.83,"control":32.93,"t_grasp":35.0,"c_grasp":25.0,"b_grasp":32.0,"diff":10.89,"ci":[-7.53,28.94],"wins":14,"losses":6}};
 const SPEC = [
-  {k:"ok",   name:"Demonstrations that succeed", fmt:v=>(100*v).toFixed(1)+"%", target:"\u2265 95%",
-   pass:v=>v>=0.95, gold:1.0, worst:0.25,
-   why:"data where most demonstrations fail teaches the policy to fail"},
-  {k:"tr",   name:"Gripper transitions per episode", fmt:v=>v.toFixed(2), target:"\u2264 2",
-   pass:v=>v<=2, gold:1.0, worst:27,
-   why:"one decisive close, not repeated opening and shutting"},
-  {k:"peff", name:"Path efficiency", fmt:v=>v.toFixed(3), target:"\u2265 0.45",
-   pass:v=>v>=0.45, gold:0.534, worst:0.22,
-   why:"how directly the arm travels, the strongest single predictor of success"},
-  {k:"jerk", name:"Action jerk", fmt:v=>v.toFixed(3), target:"\u2264 0.10",
-   pass:v=>v<=0.10, gold:0.043, worst:0.35,
-   why:"smooth control rather than twitchy corrections"},
-  {k:"tcl",  name:"Grasp timing", fmt:v=>v.toFixed(2), target:"\u2265 0.50",
-   pass:v=>v>=0.50, gold:0.70, worst:0.15,
-   why:"close the gripper on arrival, not before"},
-  {k:"n",    name:"Episode length", fmt:v=>v.toFixed(0), target:"\u2264 80", 
-   pass:v=>v<=80, gold:48, worst:150,
-   why:"decisive demonstrations rather than ones that run out the clock"},
+ {k:"ok",  n:"Demonstrations that succeed", f:v=>(100*v).toFixed(1)+"%", t:"≥ 95%", p:v=>v>=0.95, g:1,   w:0.25},
+ {k:"tr",  n:"Gripper transitions",          f:v=>v.toFixed(2),          t:"≤ 2",   p:v=>v<=2,    g:1,   w:27},
+ {k:"peff",n:"Path efficiency",              f:v=>v.toFixed(3),          t:"≥ 0.45",p:v=>v>=0.45, g:.534,w:.22},
+ {k:"jerk",n:"Action jerk",                  f:v=>v.toFixed(3),          t:"≤ 0.10",p:v=>v<=0.10, g:.043,w:.35},
+ {k:"tcl", n:"Grasp timing",                 f:v=>v.toFixed(2),          t:"≥ 0.50",p:v=>v>=0.50, g:.70, w:.15},
+ {k:"n",   n:"Episode length",               f:v=>v.toFixed(0),          t:"≤ 80",  p:v=>v<=80,   g:48,  w:150},
 ];
+const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+const $=id=>document.getElementById(id);
+let cur=null, passed=0;
 
-const mean = a => a.reduce((s,x)=>s+x,0)/a.length;
+function setRail(n){document.querySelectorAll(".rs").forEach(r=>{
+  const s=+r.dataset.s; r.classList.toggle("on",s<=n); r.classList.toggle("now",s===n);});}
+function show(id){const e=$(id);e.classList.add("vis");e.scrollIntoView({behavior:"smooth",block:"start"});}
 
-function screen(eps, label){
-  const m = {};
-  for (const s of SPEC) m[s.k] = mean(eps.map(e => e[s.k]));
-  const rows = document.getElementById("rows");
-  rows.innerHTML = "";
-  let passed = 0;
-  for (const s of SPEC){
-    const v = m[s.k], ok = s.pass(v);
-    if (ok) passed++;
-    const span = Math.abs(s.gold - s.worst) || 1;
-    let frac = 1 - Math.abs(v - s.gold)/span;
-    frac = Math.max(0.04, Math.min(1, frac));
-    const col = ok ? "var(--ok)" : "var(--bad)";
-    rows.insertAdjacentHTML("beforeend", `<tr>
-      <td>${s.name}<div style="color:var(--dim);font-size:11px;font-family:var(--mono)">${s.why}</div></td>
-      <td style="color:${col};font-weight:700">${s.fmt(v)}</td>
-      <td style="color:var(--dim)">${s.target}</td>
-      <td><div class="bar"><i style="width:${(frac*100).toFixed(0)}%;background:${col}"></i></div></td>
-      <td><span class="pill ${ok?'p-ok':'p-bad'}">${ok?"pass":"fail"}</span></td>
-    </tr>`);
-  }
-  const vv = document.getElementById("vv"), vs = document.getElementById("vs");
-  document.getElementById("sumtitle").textContent =
-    `Screen results  ·  ${label}  ·  ${eps.length} episodes`;
-  if (passed === SPEC.length){
-    vv.textContent = "Worth training on"; vv.style.color = "var(--ok)";
-    vs.textContent = "All six checks pass. This set looks like data that produced a working policy in the study.";
-  } else if (passed >= 4){
-    vv.textContent = `${passed} of 6 checks pass`; vv.style.color = "var(--signal)";
-    vs.textContent = "Usable, with weaknesses. Fix the failing rows before spending GPU time, since each one tracks a measured drop in performance.";
+/* ---------- 1 screen ---------- */
+function screen(eps,label,key){
+  cur={eps,label,key}; passed=0;
+  const m={}; SPEC.forEach(s=>m[s.k]=mean(eps.map(e=>e[s.k])));
+  $("rows").innerHTML="";
+  SPEC.forEach(s=>{
+    const v=m[s.k],ok=s.p(v); if(ok)passed++;
+    const span=Math.abs(s.g-s.w)||1;
+    const fr=Math.max(.04,Math.min(1,1-Math.abs(v-s.g)/span));
+    const c=ok?"var(--ok)":"var(--bad)";
+    $("rows").insertAdjacentHTML("beforeend",`<tr><td>${s.n}</td>
+      <td style="color:${c};font-weight:700">${s.f(v)}</td><td style="color:var(--dim)">${s.t}</td>
+      <td><div class="bar"><i style="width:${(fr*100).toFixed(0)}%;background:${c}"></i></div></td>
+      <td><span class="pill ${ok?'p-ok':'p-bad'}">${ok?"pass":"fail"}</span></td></tr>`);
+  });
+  $("s1t").textContent=`Screen · ${label} · ${eps.length} episodes`;
+  const good=passed===6, bad=passed<4;
+  $("v1").innerHTML=`<div class="vv" style="color:${good?'var(--ok)':bad?'var(--bad)':'var(--signal)'}">
+      ${good?"Worth training on":bad?"Do not train on this":passed+" of 6 checks pass"}</div>
+    <div class="vs">${good?"Every check clears. This looks like data that produced a working policy."
+      :bad?"Most checks fail. Data this far off trained a policy no better than random movement."
+      :"Usable with weaknesses. The failing rows each track a measured drop in performance."}</div>`;
+  setRail(1); show("s1");
+  ["s2","s3","s4","s5"].forEach(i=>$(i).classList.remove("vis"));
+  $("s1").querySelector(".next").style.display = key?"inline-block":"none";
+  if(!key) $("v1").innerHTML+=`<div class="vs" style="color:var(--signal);margin-top:10px">
+    Training and evaluating your own file needs a GPU run. Pick one of the three sets above to
+    walk the remaining stages on measured results.</div>`;
+}
+
+/* ---------- 2 eval ---------- */
+function evalStage(){
+  const r=D.results[cur.key];
+  $("run2").innerHTML=`<span class="tick">training</span> 1,000 steps on 9,700 frames
+    <span class="sep">·</span> final loss <b>${r.loss}</b>
+    <span class="sep">·</span> <span class="tick">evaluating</span> 100 scenes, paired seeds`;
+  $("ev").innerHTML=[
+    ["Mean progress",r.prog.toFixed(2)+"%",`${r.ci[0]} to ${r.ci[1]}`],
+    ["Successes",r.succ+" / 100",""],
+    ["Reached the cube",r.reach+"%",""],
+    ["Gripped it",r.grasp+"%",""]
+  ].map(([a,b,c])=>`<div class="st"><div class="stl">${a}</div><div class="stv">${b}</div>
+      <div class="stc">${c}</div></div>`).join("");
+  const W=560,x0=40,sc=W/50;
+  $("evbar").innerHTML=`
+    <rect x="${x0}" y="20" width="${W}" height="26" fill="var(--panel-2)"/>
+    <rect x="${x0}" y="20" width="${(r.prog*sc).toFixed(1)}" height="26" fill="var(--signal)"/>
+    <line x1="${x0+2.74*sc}" y1="14" x2="${x0+2.74*sc}" y2="52" stroke="var(--mid)" stroke-dasharray="3 2"/>
+    <text x="${x0+2.74*sc}" y="66" font-family="var(--mono)" font-size="9" fill="var(--dim)" text-anchor="middle">random 2.74</text>
+    <text x="${x0+r.prog*sc+10}" y="38" font-family="var(--mono)" font-size="13" font-weight="700" fill="var(--text)">${r.prog.toFixed(2)}%</text>
+    <text x="${x0}" y="88" font-family="var(--mono)" font-size="9" fill="var(--dim)">0</text>
+    <text x="${x0+W}" y="88" font-family="var(--mono)" font-size="9" fill="var(--dim)" text-anchor="end">50</text>`;
+  $("evcap").textContent=`${cur.label} after training. The dashed line is what random movement scores.`;
+  setRail(2); show("s2");
+}
+
+/* ---------- 3 diagnose ---------- */
+function diagnose(){
+  const r=D.results[cur.key], f=r.funnel;
+  $("diagtext").textContent=r.diag;
+  const names=[["reach","reach"],["grasp","grasp, given reach"],["lift","lift, given grasp"],["place","place, given lift"]];
+  const x0=30,gap=148,bw=74;
+  let svg="";
+  names.forEach(([k,lab],i)=>{
+    const v=f[k], h=Math.max(2,v*92), x=x0+i*gap, isBot=(k==="grasp"&&r.bottleneck==="grasp");
+    svg+=`<rect x="${x}" y="14" width="${bw}" height="92" fill="var(--panel-2)"/>
+      <rect x="${x}" y="${14+92-h}" width="${bw}" height="${h}" fill="${isBot?'var(--bad)':'var(--signal)'}"/>
+      <text x="${x+bw/2}" y="${8+92-h}" font-family="var(--mono)" font-size="11" font-weight="700"
+        fill="var(--text)" text-anchor="middle">${v.toFixed(2)}</text>
+      <text x="${x+bw/2}" y="122" font-family="var(--mono)" font-size="9.5" fill="var(--dim)" text-anchor="middle">${lab}</text>`;
+    if(isBot) svg+=`<text x="${x+bw/2}" y="140" font-family="var(--mono)" font-size="9"
+      fill="var(--bad)" text-anchor="middle" letter-spacing="1">WEAK LINK</text>`;
+  });
+  $("funnel").innerHTML=svg;
+  if(r.bottleneck==="data"){
+    $("pres").innerHTML=`<div class="pt">What the diagnosis says</div>
+      <p>Only a quarter of these demonstrations finish the task, so the policy learned to fail.
+      No training setting repairs that. This set needs replacing, not tuning.</p>`;
   } else {
-    vv.textContent = "Do not train on this"; vv.style.color = "var(--bad)";
-    vs.textContent = "Most checks fail. In the study a set failing this badly trained a policy no better than random, and no amount of extra training fixed it.";
+    $("pres").innerHTML=`<div class="pt">What the diagnosis says</div>
+      <p>Gripping is the weak link, and repairing it alone would be worth
+      <b class="fig">${r.uplift} points</b> of overall success. Before collecting grip data, check
+      whether other datasets fail there too. They do, including the set where every single
+      demonstration succeeds, so the limit is in how the policy is run, not what it was taught.</p>`;
   }
-  document.getElementById("out").style.display = "block";
-  document.getElementById("out").scrollIntoView({behavior:"smooth", block:"start"});
+  setRail(3); show("s3");
 }
 
-function fromCSV(text){
-  const lines = text.trim().split(/\r?\n/);
-  const head = lines[0].split(",").map(h=>h.trim().toLowerCase());
-  const need = ["episode","step","eef_x","eef_y","eef_z","gripper"];
-  for (const c of need) if (!head.includes(c)) throw new Error(`missing column: ${c}`);
-  const ix = Object.fromEntries(head.map((h,i)=>[h,i]));
-  const byEp = new Map();
-  for (let i=1;i<lines.length;i++){
-    if (!lines[i].trim()) continue;
-    const p = lines[i].split(",");
-    const e = p[ix.episode];
-    if (!byEp.has(e)) byEp.set(e, []);
-    byEp.get(e).push({
-      x:+p[ix.eef_x], y:+p[ix.eef_y], z:+p[ix.eef_z], g:+p[ix.gripper],
-      ok: ix.success!==undefined ? +p[ix.success] : 0
-    });
+/* ---------- 4 intervene ---------- */
+function intervene(){
+  const r=D.results[cur.key];
+  if(r.bottleneck==="data"){
+    $("fixcard").innerHTML=`<div class="pt">Fix</div>
+      <p>Nothing to tune. Keep only the demonstrations that finish the task, or collect a new set
+      that clears the screen in stage 1.</p>`;
+    $("p4").textContent="measured"; setRail(4); show("s4"); return;
   }
-  if (!byEp.size) throw new Error("no rows found");
-  const eps = [];
-  for (const [,rows] of byEp){
-    if (rows.length < 3) continue;
-    let path = 0, tr = 0, jerk = 0, closeAt = null;
-    for (let t=1;t<rows.length;t++){
-      const a = rows[t-1], b = rows[t];
-      path += Math.hypot(b.x-a.x, b.y-a.y, b.z-a.z);
-      jerk += Math.abs(b.g-a.g);
-      const sa = Math.sign(a.g), sb = Math.sign(b.g);
-      if (sa !== sb){ tr++; if (sb > 0 && closeAt === null) closeAt = t; }
-    }
-    const f = rows[0], l = rows[rows.length-1];
-    const disp = Math.hypot(l.x-f.x, l.y-f.y, l.z-f.z);
-    eps.push({
-      n: rows.length, ok: rows[0].ok ? 1 : 0, tr,
-      jerk: jerk/(rows.length-1),
-      peff: path > 1e-9 ? disp/path : 0,
-      tcl: closeAt === null ? 1 : closeAt/rows.length
-    });
-  }
-  if (!eps.length) throw new Error("no usable episodes");
-  return eps;
+  const xset = cur.key!=="ph";
+  const banner = xset ? `<div class="xnote">Both fixes below were carried out on the expert set,
+    the strongest of the three. The weak link is the same one this set has, so the numbers show
+    what the fixes are worth against the best starting point rather than against
+    ${cur.label}.</div>` : "";
+  const best=Math.max(...D.recipe.map(x=>x.p));
+  const bars=D.recipe.map((x,i)=>{
+    const h=Math.max(2,x.p/45*96), on=x.p===best;
+    return `<rect x="${40+i*138}" y="12" width="86" height="96" fill="var(--panel-2)"/>
+      <rect x="${40+i*138}" y="${12+96-h}" width="86" height="${h}" fill="${on?'var(--signal)':'var(--mid)'}"/>
+      <text x="${83+i*138}" y="${6+96-h}" font-family="var(--mono)" font-size="11" font-weight="700"
+        fill="var(--text)" text-anchor="middle">${x.p.toFixed(1)}</text>
+      <text x="${83+i*138}" y="126" font-family="var(--mono)" font-size="10" fill="var(--dim)"
+        text-anchor="middle">${x.n} actions</text>`;}).join("");
+  $("fixcard").innerHTML=`${banner}<div class="pt">Fix one: change how often the policy looks</div>
+    <p>The policy predicts a burst of actions, then runs several before checking its position again.
+    Running fewer per look keeps the gripper on target as it closes. No retraining involved.</p>
+    <figure><svg viewBox="0 0 620 140">${bars}</svg>
+      <figcaption>Executing four actions per look beats eight. Two is worse, because the arm never
+      commits to a motion.</figcaption></figure>
+    <div class="pt" style="margin-top:24px">Fix two: add cleaner demonstrations</div>
+    <p>Add 107 of the most direct demonstrations from another set, or 107 picked at random,
+    then train 50 steps further. Same budget either way, so only the choice differs.</p>`;
+  $("p4").textContent = xset ? "measured on the expert set" : "measured";
+  $("p5").textContent = xset ? "measured on the expert set" : "measured";
+  setRail(4); show("s4");
 }
 
-const err = document.getElementById("err");
-function handle(text, label){
-  err.textContent = "";
-  try { screen(fromCSV(text), label); }
-  catch(e){ err.textContent = "Could not read that file: " + e.message; }
+/* ---------- 5 result ---------- */
+function result(){
+  const r=D.results[cur.key], a=D.anneal;
+  if(r.bottleneck==="data"){
+    $("rescard").innerHTML=`<div class="pt">Result</div>
+      <p>This set never reaches a working policy. In the study it scored
+      <b class="fig">4.85%</b> against <b>2.74%</b> for random movement, and no setting changed that.
+      The screen in stage 1 predicted it in seconds, before any GPU time was spent.</p>`;
+    $("p5").textContent="measured"; setRail(5); show("s5"); return;
+  }
+  const base=D.results.ph;
+  const rows=[["Where it started",base.prog,"var(--mid)"],
+              ["After the looking-rate fix",a.baseline,"var(--mid)"],
+              ["Plus randomly chosen data",a.control,"var(--bad)"],
+              ["Plus cleaner data",a.targeted,"var(--signal)"]];
+  const X=196, BW=450, sc=BW/50;
+  const bars=rows.map(([lab,v,c],i)=>`
+    <rect x="${X}" y="${8+i*34}" width="${BW}" height="22" fill="var(--panel-2)"/>
+    <rect x="${X}" y="${8+i*34}" width="${(v*sc).toFixed(0)}" height="22" fill="${c}"/>
+    <text x="${X-10}" y="${23+i*34}" font-family="var(--mono)" font-size="10.5" fill="var(--dim)" text-anchor="end">${lab}</text>
+    <text x="${X+8+v*sc}" y="${23+i*34}" font-family="var(--mono)" font-size="11.5" font-weight="700" fill="var(--text)">${v.toFixed(2)}</text>`).join("");
+  $("rescard").innerHTML=`<div class="pt">Result</div>
+    <figure><svg viewBox="0 0 700 150">${bars}</svg></figure>
+    <div class="statrow">
+      <div class="st"><div class="stl">Best score</div><div class="stv" style="color:var(--signal)">${a.targeted}%</div><div class="stc">up from ${base.prog.toFixed(2)}%</div></div>
+      <div class="st"><div class="stl">Gripped it</div><div class="stv">${a.t_grasp}%</div><div class="stc">up from ${a.b_grasp}%</div></div>
+      <div class="st"><div class="stl">Scenes won vs random pick</div><div class="stv">${a.wins} / ${a.wins+a.losses}</div><div class="stc">margin ${a.diff} points</div></div>
+      <div class="st"><div class="stl">Interval on that margin</div><div class="stv">${a.ci[0]} to ${a.ci[1]}</div><div class="stc">n = 20 scenes</div></div>
+    </div>
+    ${cur.key!=="ph"?`<p style="margin-top:18px;color:var(--dim)">Measured on the expert set.
+      ${cur.label} sits ${(base.prog-r.prog).toFixed(2)} points lower at the start, and nothing here
+      has been run from that starting point.</p>`:""}
+    <p style="margin-top:18px">Changing how often the policy looks moved it from
+    <b>34.83%</b> to <b class="fig">40.71%</b> with no retraining. Adding cleaner demonstrations on
+    top reached <b class="fig">${a.targeted}%</b>. The same amount of randomly chosen data landed at
+    <b>${a.control}%</b>, below where it started.</p>`;
+  setRail(5); show("s5");
 }
 
-const drop = document.getElementById("drop"), file = document.getElementById("file");
-drop.onclick = () => file.click();
-drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); file.click(); } };
-drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
-drop.ondragleave = () => drop.classList.remove("over");
-drop.ondrop = e => {
-  e.preventDefault(); drop.classList.remove("over");
-  const f = e.dataTransfer.files[0]; if (!f) return;
-  f.text().then(t => handle(t, f.name));
-};
-file.onchange = () => { const f = file.files[0]; if (f) f.text().then(t => handle(t, f.name)); };
-document.querySelectorAll("[data-p]").forEach(b => {
-  b.onclick = () => screen(PRESETS[b.dataset.p], b.textContent);
-});
+/* ---------- CSV ---------- */
+function fromCSV(t){
+  const L=t.trim().split(/\r?\n/), h=L[0].split(",").map(s=>s.trim().toLowerCase());
+  ["episode","eef_x","eef_y","eef_z","gripper"].forEach(c=>{if(!h.includes(c))throw new Error("missing column "+c);});
+  const I=Object.fromEntries(h.map((x,i)=>[x,i])), M=new Map();
+  for(let i=1;i<L.length;i++){if(!L[i].trim())continue;const p=L[i].split(",");
+    const e=p[I.episode]; if(!M.has(e))M.set(e,[]);
+    M.get(e).push({x:+p[I.eef_x],y:+p[I.eef_y],z:+p[I.eef_z],g:+p[I.gripper],
+      ok:I.success!==undefined?+p[I.success]:0});}
+  const out=[];
+  for(const[,rs]of M){ if(rs.length<3)continue;
+    let path=0,jerk=0,tr=0,cl=null;
+    for(let t=1;t<rs.length;t++){const a=rs[t-1],b=rs[t];
+      path+=Math.hypot(b.x-a.x,b.y-a.y,b.z-a.z); jerk+=Math.abs(b.g-a.g);
+      const sa=Math.sign(a.g),sb=Math.sign(b.g);
+      if(sa!==sb){tr++; if(sb>0&&cl===null)cl=t;}}
+    const f=rs[0],l=rs[rs.length-1];
+    out.push({n:rs.length,ok:f.ok?1:0,tr,jerk:jerk/(rs.length-1),
+      peff:path>1e-9?Math.hypot(l.x-f.x,l.y-f.y,l.z-f.z)/path:0,
+      tcl:cl===null?1:cl/rs.length});}
+  if(!out.length)throw new Error("no usable episodes");
+  return out;
+}
+
+/* ---------- wiring ---------- */
+document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{
+  $("err").textContent=""; screen(D.screen[b.dataset.p], b.textContent, b.dataset.p);});
+const drop=$("drop"), file=document.createElement("input");
+file.type="file"; file.accept=".csv"; file.hidden=true; document.body.appendChild(file);
+const load=f=>f.text().then(t=>{try{$("err").textContent="";screen(fromCSV(t),f.name,null);}
+  catch(e){$("err").textContent="Could not read that file: "+e.message;}});
+drop.onclick=()=>file.click();
+drop.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();file.click();}};
+drop.ondragover=e=>{e.preventDefault();drop.classList.add("over");};
+drop.ondragleave=()=>drop.classList.remove("over");
+drop.ondrop=e=>{e.preventDefault();drop.classList.remove("over");const f=e.dataTransfer.files[0];if(f)load(f);};
+file.onchange=()=>{const f=file.files[0];if(f)load(f);};
+const GO={2:evalStage,3:diagnose,4:intervene,5:result};
+document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>GO[b.dataset.go]());
+$("again").onclick=()=>{["s1","s2","s3","s4","s5"].forEach(i=>$(i).classList.remove("vis"));
+  setRail(0); $("pick").scrollIntoView({behavior:"smooth",block:"start"});};
+
 </script>
 </body>
 </html>
