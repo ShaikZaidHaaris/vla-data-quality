@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Quality for VLA Fine-Tuning · RoboMimic Lift</title>
+<meta name="description" content="A controlled study of demonstration quality for vision-language-action fine-tuning: three RoboMimic sources, one fixed task, matched frame budgets.">
+<meta property="og:title" content="Data Quality for VLA Fine-Tuning · RoboMimic Lift">
+<meta property="og:description" content="Three demonstration sources, one fixed task, matched frame budgets. Which data trains the best policy?">
+<meta property="og:type" content="article">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔬</text></svg>">
+<style>*{box-sizing:border-box;margin:0;padding:0}img{max-width:100%}</style>
+</head>
+<body>
+<style>
+  :root{
+    --paper:#FBFCFD; --panel:#F3F6F8; --ink:#10141A; --muted:#59636F;
+    --rule:#DDE3E8; --rule-soft:#E9EDF1;
+    --accent:#0B6E5F; --accent-soft:#0B6E5F1a;
+    --good:#1F7A4D; --warn:#9A6B08; --bad:#A83E33;
+    --ph:#0B6E5F; --mh:#9A6B08; --mg:#A83E33; --base:#59636F;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0E1216; --panel:#161B21; --ink:#E7ECF1; --muted:#93A0AE;
+      --rule:#262D35; --rule-soft:#1E242B;
+      --accent:#4CC3AC; --accent-soft:#4CC3AC1f;
+      --good:#4FBE85; --warn:#D9A63C; --bad:#E07364;
+      --ph:#4CC3AC; --mh:#D9A63C; --mg:#E07364; --base:#93A0AE;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1216; --panel:#161B21; --ink:#E7ECF1; --muted:#93A0AE;
+    --rule:#262D35; --rule-soft:#1E242B;
+    --accent:#4CC3AC; --accent-soft:#4CC3AC1f;
+    --good:#4FBE85; --warn:#D9A63C; --bad:#E07364;
+    --ph:#4CC3AC; --mh:#D9A63C; --mg:#E07364; --base:#93A0AE;
+  }
+  :root[data-theme="light"]{
+    --paper:#FBFCFD; --panel:#F3F6F8; --ink:#10141A; --muted:#59636F;
+    --rule:#DDE3E8; --rule-soft:#E9EDF1;
+    --accent:#0B6E5F; --accent-soft:#0B6E5F1a;
+    --good:#1F7A4D; --warn:#9A6B08; --bad:#A83E33;
+    --ph:#0B6E5F; --mh:#9A6B08; --mg:#A83E33; --base:#59636F;
+  }
+
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--sans);
+    line-height:1.62; -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 28px 120px}
+  .col{max-width:680px}
+
+  /* ---------- masthead ---------- */
+  .mast{border-bottom:1px solid var(--rule);padding:56px 0 30px;margin-bottom:56px}
+  .kicker{
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:22px;display:flex;gap:14px;flex-wrap:wrap
+  }
+  .kicker span{color:var(--muted)}
+  h1{
+    font-size:clamp(30px,4.6vw,50px);line-height:1.06;font-weight:800;
+    letter-spacing:-.028em;text-wrap:balance;margin-bottom:20px;max-width:19ch
+  }
+  .dek{font-size:18px;color:var(--muted);max-width:62ch;text-wrap:pretty}
+
+  .headline{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:40px
+  }
+  .hcell{background:var(--paper);padding:16px 18px}
+  .hcell .lab{font-family:var(--mono);font-size:10px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .hcell .val{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .hcell .sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+
+  /* ---------- steps ---------- */
+  .step{padding:60px 0;border-top:1px solid var(--rule-soft)}
+  .stepnum{
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--accent);
+    text-transform:uppercase;margin-bottom:12px
+  }
+  h2{font-size:clamp(23px,2.9vw,32px);line-height:1.16;font-weight:750;
+    letter-spacing:-.022em;margin-bottom:16px;text-wrap:balance;max-width:24ch}
+  h3{font-size:16px;font-weight:700;letter-spacing:-.01em;margin:34px 0 12px}
+  p{margin-bottom:15px;max-width:68ch}
+  .lede{font-size:17px;color:var(--muted);max-width:64ch;margin-bottom:22px}
+  strong{font-weight:660}
+  code{font-family:var(--mono);font-size:.88em;background:var(--panel);
+    padding:.12em .38em;border-radius:2px}
+
+  /* ---------- data panels ---------- */
+  .panel{
+    background:var(--panel);border:1px solid var(--rule);
+    padding:22px 24px;margin:26px 0;overflow-x:auto
+  }
+  .panel-t{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+  figure{margin:26px 0}
+  figcaption{font-family:var(--mono);font-size:11px;color:var(--muted);
+    margin-top:11px;line-height:1.5;max-width:70ch}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}
+  th{
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);text-align:right;padding:0 12px 9px;border-bottom:1px solid var(--rule);
+    font-weight:500;white-space:nowrap
+  }
+  th:first-child{text-align:left}
+  td{padding:9px 12px;border-bottom:1px solid var(--rule-soft);text-align:right;
+    font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+  td:first-child{text-align:left;font-family:var(--sans);font-size:13.5px}
+  tr:last-child td{border-bottom:none}
+  .win td{background:var(--accent-soft)}
+  .win td:first-child{font-weight:650}
+
+  .tag{font-family:var(--mono);font-size:10px;letter-spacing:.06em;padding:2px 7px;
+    border:1px solid currentColor;border-radius:2px;white-space:nowrap}
+  .t-good{color:var(--good)} .t-warn{color:var(--warn)} .t-bad{color:var(--bad)}
+
+  .callout{
+    border-left:2px solid var(--accent);padding:4px 0 4px 20px;margin:26px 0;
+    max-width:66ch
+  }
+  .callout .ct{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+
+  .legend{display:flex;gap:20px;flex-wrap:wrap;font-family:var(--mono);
+    font-size:11px;color:var(--muted);margin-bottom:14px}
+  .legend i{display:inline-block;width:11px;height:11px;margin-right:6px;
+    vertical-align:-1px;border-radius:1px}
+
+  .fin{border-top:1px solid var(--rule);margin-top:60px;padding-top:30px;
+    font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.8}
+  a{color:var(--accent)}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="kicker">
+      <span>RoboMimic · Lift</span><span>GR00T-N1.7-3B</span><span>NVIDIA L4 24 GB</span><span>2026-07-28</span>
+    </div>
+    <h1>What actually makes a robot policy better</h1>
+    <p class="dek">
+      Three demonstration sources, one fixed task, matched frame budgets. Which data
+      trains the best policy, and does knowing why let you improve it?
+    </p>
+
+    <div class="headline">
+      <div class="hcell">
+        <div class="lab">Best policy</div>
+        <div class="val">43.83<span style="font-size:15px">%</span></div>
+        <div class="sub">curated anneal</div>
+      </div>
+      <div class="hcell">
+        <div class="lab">Free recipe gain</div>
+        <div class="val">+5.9<span style="font-size:15px">pt</span></div>
+        <div class="sub">no retraining</div>
+      </div>
+      <div class="hcell">
+        <div class="lab">Ranking</div>
+        <div class="val">PH·MH·MG</div>
+        <div class="sub">matches ground truth</div>
+      </div>
+      <div class="hcell">
+        <div class="lab">Rollouts</div>
+        <div class="val">1,340</div>
+        <div class="sub">39 eval records</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ 01 ============ -->
+  <section class="step" style="border-top:none;padding-top:0">
+    <div class="stepnum">Step 01 · the benchmark</div>
+    <h2>One task, three data sources, matched budgets</h2>
+    <div class="col">
+      <p class="lede">
+        Everything except the data is held still.
+      </p>
+      <p>
+        The task is robosuite <strong>Lift</strong>. A Franka Panda picks a cube off a table.
+        RoboMimic recorded that same task three times, and the only thing that changed was who
+        did the recording: one skilled teleoperator (PH), six operators of varying skill (MH),
+        and an RL agent left to run (MG).
+      </p>
+
+      <p>
+        Budgets are matched on <strong>frames, not episodes</strong>. MH and MG episodes run
+        much longer, so counting episodes would have quietly given them more data and turned
+        this into a study of volume.
+      </p>
+
+      <div class="panel">
+        <div class="panel-t">Matched training corpora</div>
+        <table>
+          <thead><tr><th>Source</th><th>Episodes</th><th>Frames</th><th>Demo success</th><th>Median length</th></tr></thead>
+          <tbody>
+            <tr><td>PH, one expert</td><td>200</td><td>9,666</td><td>100%</td><td>48</td></tr>
+            <tr><td>MH, six operators</td><td>94</td><td>9,698</td><td>100%</td><td>96</td></tr>
+            <tr><td>MG, machine generated</td><td>65</td><td>9,750</td><td class="t-bad">26.7%</td><td>150</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 02 ============ -->
+  <section class="step">
+    <div class="stepnum">Step 02 · the result</div>
+    <h2>Expert beats mixed beats machine</h2>
+    <div class="col">
+      <p class="lede">
+        Identical model, 1,000 steps each, evaluated on 100 fresh scenes never used to
+        select a checkpoint.
+      </p>
+    </div>
+
+    <figure>
+      <div class="legend">
+        <span><i style="background:var(--ph)"></i>PH expert</span>
+        <span><i style="background:var(--mh)"></i>MH six operators</span>
+        <span><i style="background:var(--mg)"></i>MG machine</span>
+        <span><i style="background:var(--base)"></i>random floor</span>
+      </div>
+      <svg viewBox="0 0 660 208" role="img" aria-label="Mean progress by data source with 95% confidence intervals">
+        <g stroke="var(--rule)" stroke-width="1">
+          <line x1="120" y1="16" x2="120" y2="176"/>
+          <line x1="216" y1="16" x2="216" y2="176" stroke="var(--rule-soft)"/>
+          <line x1="312" y1="16" x2="312" y2="176" stroke="var(--rule-soft)"/>
+          <line x1="408" y1="16" x2="408" y2="176" stroke="var(--rule-soft)"/>
+          <line x1="504" y1="16" x2="504" y2="176" stroke="var(--rule-soft)"/>
+          <line x1="600" y1="16" x2="600" y2="176" stroke="var(--rule-soft)"/>
+        </g>
+        <g font-family="var(--mono)" font-size="10" fill="var(--muted)" text-anchor="middle">
+          <text x="120" y="192">0</text><text x="216" y="192">10</text>
+          <text x="312" y="192">20</text><text x="408" y="192">30</text>
+          <text x="504" y="192">40</text><text x="600" y="192">50</text>
+          <text x="360" y="206" font-size="9" letter-spacing="1.4">MEAN PROGRESS (%)</text>
+        </g>
+        <g font-family="var(--mono)" font-size="11.5" fill="var(--ink)" text-anchor="end">
+          <text x="108" y="34">PH</text><text x="108" y="74">MH</text>
+          <text x="108" y="114">MG</text><text x="108" y="154">random</text>
+        </g>
+        <!-- bars -->
+        <rect x="120" y="19" width="334" height="20" fill="var(--ph)"/>
+        <rect x="120" y="59" width="232" height="20" fill="var(--mh)"/>
+        <rect x="120" y="99" width="47" height="20" fill="var(--mg)"/>
+        <rect x="120" y="139" width="26" height="20" fill="var(--base)"/>
+        <!-- CI whiskers -->
+        <g stroke="var(--ink)" stroke-width="1.4" opacity=".72">
+          <line x1="396" y1="29" x2="520" y2="29"/><line x1="396" y1="24" x2="396" y2="34"/><line x1="520" y1="24" x2="520" y2="34"/>
+          <line x1="305" y1="69" x2="407" y2="69"/><line x1="305" y1="64" x2="305" y2="74"/><line x1="407" y1="64" x2="407" y2="74"/>
+          <line x1="157" y1="109" x2="178" y2="109"/><line x1="157" y1="104" x2="157" y2="114"/><line x1="178" y1="104" x2="178" y2="114"/>
+          <line x1="139" y1="149" x2="154" y2="149"/><line x1="139" y1="144" x2="139" y2="154"/><line x1="154" y1="144" x2="154" y2="154"/>
+        </g>
+        <g font-family="var(--mono)" font-size="11.5" font-weight="600" fill="var(--ink)">
+          <text x="530" y="33">34.83</text><text x="417" y="73">24.20</text>
+          <text x="188" y="113">4.85</text><text x="164" y="153">2.74</text>
+        </g>
+      </svg>
+      <figcaption>
+        100 rollouts per model on fresh seeds. Bars are the mean, whiskers the bootstrap 95%
+        interval. Every adjacent pair separates, and MG overlaps the random floor.
+      </figcaption>
+    </figure>
+
+    <div class="col">
+      <p>
+        This is the ordering RoboMimic already published, so the benchmark recovers a result
+        the field agrees on before being asked anything new. MG is the outlier. Zero successes
+        and zero grasps in a hundred attempts puts it level with
+        <strong>random flailing</strong>.
+      </p>
+    </div>
+
+    <div class="col">
+      <h3>Why MG collapsed</h3>
+      <p>
+        Only <strong>26.7% of MG's demonstrations actually finish the task</strong>. The rest
+        run out the clock and fail, so the policy learned to fail too. Its training loss says
+        the same thing: 1.413, against roughly 1.09 for the other two.
+      </p>
+    </div>
+
+    <figure>
+      <div class="legend"><span>Training-data statistics, measured before any GPU time</span></div>
+      <div class="panel" style="margin-top:0">
+        <table>
+          <thead><tr><th>Statistic</th><th>PH</th><th>MH</th><th>MG</th></tr></thead>
+          <tbody>
+            <tr><td>Demonstrations that succeed</td><td>100%</td><td>100%</td><td class="t-bad">26.7%</td></tr>
+            <tr><td>Gripper transitions per episode</td><td>1.00</td><td>1.13</td><td class="t-bad">26.59</td></tr>
+            <tr><td>Action jerk</td><td>0.043</td><td>0.038</td><td class="t-bad">0.353</td></tr>
+            <tr><td>Path efficiency</td><td>0.534</td><td>0.469</td><td class="t-bad">0.219</td></tr>
+            <tr><td>Grasp timing (fraction through episode)</td><td>0.70</td><td>0.76</td><td class="t-bad">0.15</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption>
+        MG closes its gripper 27 times an episode where an expert closes it once, and grabs
+        at 15% of the way through, before it has arrived. All of this is measurable in seconds
+        and predicted the collapse before a single training run.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 03 ============ -->
+  <section class="step">
+    <div class="stepnum">Step 03 · diagnosis</div>
+    <h2>Where the best policy actually breaks</h2>
+    <div class="col">
+      <p class="lede">
+        Knowing PH wins is not actionable. What stops it from winning by more?
+      </p>
+      <p>
+        Every rollout passes through reach, grasp, lift and place. Scoring each step separately
+        turns one number into a map of where policies die. The map checks out: multiplying the
+        four probabilities reproduces the observed success rate exactly, for all three datasets.
+      </p>
+    </div>
+
+    <figure>
+      <div class="legend">
+        <span><i style="background:var(--ph)"></i>PH</span>
+        <span><i style="background:var(--mh)"></i>MH</span>
+        <span><i style="background:var(--mg)"></i>MG</span>
+      </div>
+      <svg viewBox="0 0 660 240" role="img" aria-label="Stage transition probabilities by dataset">
+        <g stroke="var(--rule-soft)" stroke-width="1">
+          <line x1="150" y1="180" x2="640" y2="180"/>
+          <line x1="150" y1="135" x2="640" y2="135"/>
+          <line x1="150" y1="90" x2="640" y2="90"/>
+          <line x1="150" y1="45" x2="640" y2="45"/>
+        </g>
+        <line x1="150" y1="180" x2="640" y2="180" stroke="var(--rule)" stroke-width="1"/>
+        <g font-family="var(--mono)" font-size="10" fill="var(--muted)" text-anchor="end">
+          <text x="140" y="184">0.00</text><text x="140" y="139">0.33</text>
+          <text x="140" y="94">0.67</text><text x="140" y="49">1.00</text>
+        </g>
+        <!-- groups: 4 transitions -->
+        <g>
+          <!-- P(reach): .910 .840 .200 -->
+          <rect x="176" y="57"  width="22" height="123" fill="var(--ph)"/>
+          <rect x="200" y="67"  width="22" height="113" fill="var(--mh)"/>
+          <rect x="224" y="153" width="22" height="27"  fill="var(--mg)"/>
+          <!-- P(grasp|reach): .253 .143 0 -->
+          <rect x="296" y="146" width="22" height="34"  fill="var(--ph)"/>
+          <rect x="320" y="161" width="22" height="19"  fill="var(--mh)"/>
+          <rect x="344" y="179" width="22" height="1"   fill="var(--mg)"/>
+          <!-- P(lift|grasp): 1 1 0 -->
+          <rect x="416" y="45"  width="22" height="135" fill="var(--ph)"/>
+          <rect x="440" y="45"  width="22" height="135" fill="var(--mh)"/>
+          <rect x="464" y="179" width="22" height="1"   fill="var(--mg)"/>
+          <!-- P(success|lift): .652 .833 0 -->
+          <rect x="536" y="92"  width="22" height="88"  fill="var(--ph)"/>
+          <rect x="560" y="67"  width="22" height="113" fill="var(--mh)"/>
+          <rect x="584" y="179" width="22" height="1"   fill="var(--mg)"/>
+        </g>
+        <!-- bottleneck marker -->
+        <rect x="288" y="38" width="86" height="150" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-dasharray="3 3"/>
+        <text x="331" y="32" font-family="var(--mono)" font-size="9.5" fill="var(--accent)"
+              text-anchor="middle" letter-spacing="1.2">BOTTLENECK</text>
+        <g font-family="var(--mono)" font-size="10.5" fill="var(--ink)" text-anchor="middle">
+          <text x="211" y="200">reach</text>
+          <text x="331" y="200">grasp | reach</text>
+          <text x="451" y="200">lift | grasp</text>
+          <text x="571" y="200">place | lift</text>
+        </g>
+        <g font-family="var(--mono)" font-size="9.5" fill="var(--muted)" text-anchor="middle">
+          <text x="211" y="216">.91 / .84 / .20</text>
+          <text x="331" y="216">.25 / .14 / .00</text>
+          <text x="451" y="216">1.0 / 1.0 / n/a</text>
+          <text x="571" y="216">.65 / .83 / n/a</text>
+        </g>
+      </svg>
+      <figcaption>
+        Every dataset stalls in the same place, grasping. Once a policy has the cube, it lifts
+        it every single time: 23 of 23 for PH, 12 of 12 for MH.
+      </figcaption>
+    </figure>
+
+    <div class="col">
+      <p>
+        Fixing grasp alone would take overall success from 0.150 to 0.564, a gain of
+        <strong>41.4 points</strong>. The next best fix is worth 6.9.
+      </p>
+      <p>
+        What goes wrong is physical. Failures stall <strong>4.7 cm</strong> short of the cube;
+        successes get to <strong>1.6 cm</strong>. The behaviour that separates them most is how
+        directly the arm travels, where every standard deviation multiplies the odds of success
+        by 5.4.
+      </p>
+
+      <div class="panel">
+        <div class="panel-t">Failure vs success · behaviours that survive multiple-comparison control</div>
+        <table>
+          <thead><tr><th>Behaviour</th><th>Failures</th><th>Successes</th><th>Effect</th><th>p</th></tr></thead>
+          <tbody>
+            <tr class="win"><td>Path efficiency</td><td>0.291</td><td>0.463</td><td>−0.94</td><td>&lt;0.0001</td></tr>
+            <tr><td>Closest approach (m)</td><td>0.047</td><td>0.016</td><td>+0.82</td><td>&lt;0.0001</td></tr>
+            <tr><td>Approach completion</td><td>0.777</td><td>0.925</td><td>−0.81</td><td>&lt;0.0001</td></tr>
+            <tr><td>Gripper switching rate</td><td>0.424</td><td>0.376</td><td>+0.52</td><td>0.0014</td></tr>
+            <tr><td>Action jerk</td><td>0.340</td><td>0.332</td><td>+0.36</td><td>0.0264</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 04 ============ -->
+  <section class="step">
+    <div class="stepnum">Step 04 · hardening</div>
+    <h2>The obvious fix would have failed</h2>
+    <div class="col">
+      <p class="lede">
+        Grasping is the bottleneck, so the obvious move is to go collect grasping data.
+        Comparing the three sources shows that would have been wasted effort.
+      </p>
+      <p>
+        A weakness that shows up in <em>every</em> dataset cannot belong to any one of them.
+        Grasp succeeds 25% of the time on expert data, 14% on mixed, never on machine, and that
+        spread does not separate statistically (p = 0.73). Even the corpus where
+        <strong>every single demonstration succeeds</strong> fails at this step. The limit is in
+        the training recipe, not the data.
+      </p>
+      <p>
+        Reaching behaves the opposite way. It runs from 0.97 down to 0.20, the gap is clearly
+        separated, and expert data already demonstrates that 0.97 is reachable. That gives you
+        something concrete to aim at.
+      </p>
+
+      <div class="panel">
+        <div class="panel-t">Evidence class per transition</div>
+        <table>
+          <thead><tr><th>Transition</th><th>PH</th><th>MH</th><th>MG</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr><td>Reach</td><td>0.97</td><td>0.73</td><td>0.17</td><td><span class="tag t-good">fix with data</span></td></tr>
+            <tr class="win"><td>Grasp given reach</td><td>0.25</td><td>0.14</td><td>0.00</td><td><span class="tag t-warn">fix the recipe</span></td></tr>
+            <tr><td>Lift given grasp</td><td>1.00</td><td>1.00</td><td>0.00</td><td><span class="tag t-good">fix with data</span></td></tr>
+            <tr><td>Place given lift</td><td>0.40</td><td>0.83</td><td>0.00</td><td><span class="tag">needs more data</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 05 ============ -->
+  <section class="step">
+    <div class="stepnum">Step 05 · the recipe</div>
+    <h2>Six points, no training</h2>
+    <div class="col">
+      <p class="lede">
+        If the recipe is what limits grasping, changing the recipe should move it. That can be
+        tested at inference time, on the model already trained.
+      </p>
+      <p>
+        The policy predicts a chunk of actions, then executes several of them before looking
+        again. Running eight overshoots during the last few centimetres. Running four keeps the
+        gripper on target as it closes.
+      </p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 660 230" role="img" aria-label="Progress and grasp rate against actions executed per inference">
+        <g stroke="var(--rule-soft)" stroke-width="1">
+          <line x1="90" y1="170" x2="620" y2="170"/>
+          <line x1="90" y1="128" x2="620" y2="128"/>
+          <line x1="90" y1="86" x2="620" y2="86"/>
+          <line x1="90" y1="44" x2="620" y2="44"/>
+        </g>
+        <line x1="90" y1="170" x2="620" y2="170" stroke="var(--rule)"/>
+        <g font-family="var(--mono)" font-size="10" fill="var(--muted)" text-anchor="end">
+          <text x="80" y="174">0</text><text x="80" y="132">15</text>
+          <text x="80" y="90">30</text><text x="80" y="48">45</text>
+        </g>
+        <!-- bars: progress -->
+        <rect x="130" y="97"  width="52" height="73"  fill="var(--base)"/>
+        <rect x="260" y="56"  width="52" height="114" fill="var(--accent)"/>
+        <rect x="390" y="72"  width="52" height="98"  fill="var(--base)"/>
+        <rect x="520" y="71"  width="52" height="99"  fill="var(--base)"/>
+        <!-- grasp line -->
+        <polyline points="156,131 286,80 416,106 546,108" fill="none"
+                  stroke="var(--mg)" stroke-width="2" stroke-dasharray="4 3"/>
+        <g fill="var(--mg)">
+          <circle cx="156" cy="131" r="3.5"/><circle cx="286" cy="80" r="3.5"/>
+          <circle cx="416" cy="106" r="3.5"/><circle cx="546" cy="108" r="3.5"/>
+        </g>
+        <g font-family="var(--mono)" font-size="11.5" font-weight="600" fill="var(--ink)" text-anchor="middle">
+          <text x="156" y="90">26.02</text><text x="286" y="49">40.71</text>
+          <text x="416" y="65">34.83</text><text x="546" y="64">35.24</text>
+        </g>
+        <g font-family="var(--mono)" font-size="10.5" fill="var(--ink)" text-anchor="middle">
+          <text x="156" y="188">2</text><text x="286" y="188">4</text>
+          <text x="416" y="188">8</text><text x="546" y="188">16</text>
+          <text x="355" y="206" font-size="9" fill="var(--muted)" letter-spacing="1.3">ACTIONS EXECUTED PER INFERENCE</text>
+        </g>
+        <g font-family="var(--mono)" font-size="10" fill="var(--muted)">
+          <text x="600" y="26" text-anchor="end"><tspan fill="var(--mg)">■</tspan> grasp rate</text>
+          <text x="600" y="12" text-anchor="end"><tspan fill="var(--accent)">■</tspan> progress</text>
+        </g>
+      </svg>
+      <figcaption>
+        Four is a real optimum rather than a trend. Replanning too often is worse, because the
+        policy never commits to a motion. Grasp rate, the step the analysis flagged, climbs from
+        23% to 32%.
+      </figcaption>
+    </figure>
+
+    <div class="col">
+      <p>
+        Changing one setting bought <strong>+5.9 points, and +9 points of grasp rate</strong>,
+        with no retraining at all. It moved exactly the step that had been ruled out as a data
+        problem.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ 06 ============ -->
+  <section class="step">
+    <div class="stepnum">Step 06 · the test</div>
+    <h2>Does following the prescription work?</h2>
+    <div class="col">
+      <p class="lede">
+        The claim is causal: select data by path efficiency and the policy improves.
+      </p>
+      <p>
+        Both arms take the same trained model and train it 50 steps further. One adds the 107
+        most direct demonstrations from MH. The other adds 98 picked at random. Same checkpoint,
+        same steps, same learning rate, same seed, same evaluation scenes, and frame budgets
+        that match to <strong>0.03%</strong>. The only thing that differs is which
+        demonstrations were chosen.
+      </p>
+
+      <div class="panel">
+        <div class="panel-t">The two corpora</div>
+        <table>
+          <thead><tr><th>Arm</th><th>Composition</th><th>Frames</th><th>Corpus path efficiency</th></tr></thead>
+          <tbody>
+            <tr class="win"><td>Targeted</td><td>PH 200 + MH top-107</td><td>19,535</td><td>0.553</td></tr>
+            <tr><td>Baseline</td><td>PH 200 only</td><td>9,666</td><td>0.534</td></tr>
+            <tr><td>Control</td><td>PH 200 + MH random 98</td><td>19,530</td><td>0.499</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 660 200" role="img" aria-label="Targeted versus control against baseline">
+        <g stroke="var(--rule)" stroke-width="1">
+          <line x1="150" y1="16" x2="150" y2="150"/>
+        </g>
+        <g stroke="var(--rule-soft)">
+          <line x1="253" y1="16" x2="253" y2="150"/>
+          <line x1="356" y1="16" x2="356" y2="150"/>
+          <line x1="459" y1="16" x2="459" y2="150"/>
+          <line x1="562" y1="16" x2="562" y2="150"/>
+        </g>
+        <!-- baseline reference -->
+        <line x1="569" y1="10" x2="569" y2="158" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="4 3" opacity=".55"/>
+        <text x="569" y="172" font-family="var(--mono)" font-size="9.5" fill="var(--muted)"
+              text-anchor="middle">baseline 40.71</text>
+        <rect x="150" y="26" width="452" height="30" fill="var(--accent)"/>
+        <rect x="150" y="76" width="339" height="30" fill="var(--base)" opacity=".55"/>
+        <g font-family="var(--mono)" font-size="12" fill="var(--ink)" text-anchor="end">
+          <text x="140" y="46">targeted</text><text x="140" y="96">control</text>
+        </g>
+        <g font-family="var(--mono)" font-size="13" font-weight="600" fill="var(--ink)">
+          <text x="612" y="46">43.83</text><text x="499" y="96">32.93</text>
+        </g>
+        <g font-family="var(--mono)" font-size="10" fill="var(--muted)" text-anchor="middle">
+          <text x="150" y="140">0</text><text x="253" y="140">10</text><text x="356" y="140">20</text>
+          <text x="459" y="140">30</text><text x="562" y="140">40</text>
+          <text x="380" y="192" font-size="9" letter-spacing="1.3">MEAN PROGRESS (%)</text>
+        </g>
+      </svg>
+      <figcaption>
+        Curated additions land above the baseline. The same amount of randomly chosen data
+        lands 7.8 points below it. Corpus path efficiency ordered the outcome exactly:
+        0.553, 0.534, 0.499.
+      </figcaption>
+    </figure>
+
+    <div class="panel">
+      <div class="panel-t">Paired comparison · identical scenes</div>
+      <table>
+        <thead><tr><th>Measure</th><th>Targeted</th><th>Control</th><th>Difference</th></tr></thead>
+        <tbody>
+          <tr class="win"><td>Mean progress</td><td>43.83</td><td>32.93</td><td>+10.89</td></tr>
+          <tr><td>Grasp rate</td><td>35.0%</td><td>25.0%</td><td>+10.0</td></tr>
+          <tr><td>Success rate</td><td>15.0%</td><td>10.0%</td><td>+5.0</td></tr>
+          <tr><td>Scenes won</td><td>14</td><td>6</td><td>70%</td></tr>
+          <tr><td>95% interval on the difference</td><td colspan="2">−7.53 to +28.94</td><td>n = 20</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <p>
+        The curated arm wins 14 of the 20 scenes by a margin of 10.89 points, and it improves
+        the same step the diagnosis pointed at. The interval around that margin still spans
+        zero. Pinning down a ten-point difference at this variance needs somewhere between 60
+        and 100 scenes, not 20.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ closing ============ -->
+  <section class="step">
+    <div class="stepnum">What it amounts to</div>
+    <h2>The specification</h2>
+    <div class="col">
+      <p class="lede">
+        Thresholds come from the corpus that demonstrably works.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-t">Accept a demonstration when</div>
+      <table>
+        <thead><tr><th>Property</th><th>Threshold</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>It accomplishes the task</td><td>≥ 0.95</td><td>MG at 0.253 trained to the random floor</td></tr>
+          <tr><td>Gripper transitions</td><td>≤ 2</td><td>one decisive close; MG averages 26.6</td></tr>
+          <tr><td>Path efficiency</td><td>≥ 0.45</td><td>odds ratio 5.42, interval 2.49 – 11.81</td></tr>
+          <tr><td>Action jerk</td><td>≤ 0.10</td><td>MG at 0.353</td></tr>
+          <tr><td>Grasp timing</td><td>≥ 0.50</td><td>close on arrival, not at 15%</td></tr>
+          <tr><td>Episode length</td><td>≤ 80 frames</td><td>decisive, not wandering</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="col">
+      <h3>Also measured</h3>
+      <p>
+        Where the cube starts does not predict success (−0.021 at full sample size). Generic
+        grasping data will not help, since every corpus fails there. Curating down to a subset
+        of data already in hand scored 37.58, below the 40.71 baseline, because throwing out
+        weaker demonstrations also throws out information. Train for 500 steps rather than 1,000
+        (42.80 falls to 29.37 by then), and execute four actions per inference rather than
+        eight.
+      </p>
+    </div>
+
+    <div class="fin">
+      1,340 evaluated rollouts across 39 records. Paired seeds throughout, verified
+      deterministic. Budgets matched on frames to 0.9%, curation arms to 0.03%. Bootstrap
+      intervals for means, Wilson for rates, Benjamini-Hochberg across families.
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
