@@ -4,6 +4,7 @@ A controlled study of demonstration quality for vision-language-action fine-tuni
 run on RoboMimic `Lift` with GR00T-N1.7-3B.
 
 **Report:** https://shaikzaidhaaris.github.io/vla-data-quality/
+**Screen your own data:** https://shaikzaidhaaris.github.io/vla-data-quality/demo.html
 
 ## What it asks
 
@@ -32,7 +33,9 @@ Changing one inference-time setting was worth **+5.9 points** with no retraining
 
 ## Contents
 
-- `index.html` — the report
+- `index.html` - the report
+- `demo.html` - browser tool that screens a demonstration set in seconds
+- `sample_trajectories.csv` - example input format
 - `METHODOLOGY.md` — full write-up, every number and every bug found
 - `data/eval_records.json` — all 39 evaluation records
 - `data/*.csv` — per-episode results, per-step traces, stage histograms, training loss
