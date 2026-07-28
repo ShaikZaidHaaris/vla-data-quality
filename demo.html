@@ -124,6 +124,21 @@ figcaption{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:10
 .fig{color:var(--signal)}
 .xnote{border-left:2px solid var(--signal);background:var(--signal-soft);padding:11px 14px;
   margin-bottom:20px;font-size:13.5px;color:var(--text);max-width:74ch}
+.stage.running>.card,.stage.running>.next{display:none}
+.work{background:var(--panel);border:1px solid var(--line);padding:18px 22px 20px}
+.wtop{display:flex;align-items:baseline;gap:10px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:13px}
+.wtop .wlab{color:var(--signal)}
+.wtop .wpct{margin-left:auto;color:var(--text);font-weight:700;letter-spacing:0;font-size:12px}
+.wbar{height:3px;background:var(--panel-2);overflow:hidden}
+.wbar i{display:block;height:100%;width:0;background:var(--signal);transition:width .22s linear}
+.wlog{font-family:var(--mono);font-size:12px;line-height:1.95;margin-top:14px;min-height:78px}
+.wlog div{color:var(--dim);opacity:0;animation:fadein .2s ease forwards}
+.wlog div.cur{color:var(--text)}
+.wlog div.cur::before{content:"\25B8 ";color:var(--signal)}
+.wlog div.dn::before{content:"\2713 ";color:var(--ok)}
+@keyframes fadein{to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.wlog div{animation:none;opacity:1}.wbar i{transition:none}}
 </style>
 </head>
 <body>
@@ -252,7 +267,8 @@ let cur=null, passed=0;
 
 function setRail(n){document.querySelectorAll(".rs").forEach(r=>{
   const s=+r.dataset.s; r.classList.toggle("on",s<=n); r.classList.toggle("now",s===n);});}
-function show(id){const e=$(id);e.classList.add("vis");e.scrollIntoView({behavior:"smooth",block:"start"});}
+function show(id,scroll=true){const e=$(id);e.classList.add("vis");
+  if(scroll)e.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth",block:"start"});}
 
 /* ---------- 1 screen ---------- */
 function screen(eps,label,key){
@@ -276,7 +292,7 @@ function screen(eps,label,key){
     <div class="vs">${good?"Every check clears. This looks like data that produced a working policy."
       :bad?"Most checks fail. Data this far off trained a policy no better than random movement."
       :"Usable with weaknesses. The failing rows each track a measured drop in performance."}</div>`;
-  setRail(1); show("s1");
+  setRail(1); show("s1",false);
   ["s2","s3","s4","s5"].forEach(i=>$(i).classList.remove("vis"));
   $("s1").querySelector(".next").style.display = key?"inline-block":"none";
   if(!key) $("v1").innerHTML+=`<div class="vs" style="color:var(--signal);margin-top:10px">
@@ -307,7 +323,7 @@ function evalStage(){
     <text x="${x0}" y="88" font-family="var(--mono)" font-size="9" fill="var(--dim)">0</text>
     <text x="${x0+W}" y="88" font-family="var(--mono)" font-size="9" fill="var(--dim)" text-anchor="end">50</text>`;
   $("evcap").textContent=`${cur.label} after training. The dashed line is what random movement scores.`;
-  setRail(2); show("s2");
+  setRail(2); show("s2",false);
 }
 
 /* ---------- 3 diagnose ---------- */
@@ -339,7 +355,7 @@ function diagnose(){
       whether other datasets fail there too. They do, including the set where every single
       demonstration succeeds, so the limit is in how the policy is run, not what it was taught.</p>`;
   }
-  setRail(3); show("s3");
+  setRail(3); show("s3",false);
 }
 
 /* ---------- 4 intervene ---------- */
@@ -349,7 +365,7 @@ function intervene(){
     $("fixcard").innerHTML=`<div class="pt">Fix</div>
       <p>Nothing to tune. Keep only the demonstrations that finish the task, or collect a new set
       that clears the screen in stage 1.</p>`;
-    $("p4").textContent="measured"; setRail(4); show("s4"); return;
+    $("p4").textContent="measured"; setRail(4); show("s4",false); return;
   }
   const xset = cur.key!=="ph";
   const banner = xset ? `<div class="xnote">Both fixes below were carried out on the expert set,
@@ -376,7 +392,7 @@ function intervene(){
     then train 50 steps further. Same budget either way, so only the choice differs.</p>`;
   $("p4").textContent = xset ? "measured on the expert set" : "measured";
   $("p5").textContent = xset ? "measured on the expert set" : "measured";
-  setRail(4); show("s4");
+  setRail(4); show("s4",false);
 }
 
 /* ---------- 5 result ---------- */
@@ -387,7 +403,7 @@ function result(){
       <p>This set never reaches a working policy. In the study it scored
       <b class="fig">4.85%</b> against <b>2.74%</b> for random movement, and no setting changed that.
       The screen in stage 1 predicted it in seconds, before any GPU time was spent.</p>`;
-    $("p5").textContent="measured"; setRail(5); show("s5"); return;
+    $("p5").textContent="measured"; setRail(5); show("s5",false); return;
   }
   const base=D.results.ph;
   const rows=[["Where it started",base.prog,"var(--mid)"],
@@ -415,7 +431,7 @@ function result(){
     <b>34.83%</b> to <b class="fig">40.71%</b> with no retraining. Adding cleaner demonstrations on
     top reached <b class="fig">${a.targeted}%</b>. The same amount of randomly chosen data landed at
     <b>${a.control}%</b>, below where it started.</p>`;
-  setRail(5); show("s5");
+  setRail(5); show("s5",false);
 }
 
 /* ---------- CSV ---------- */
@@ -444,10 +460,10 @@ function fromCSV(t){
 
 /* ---------- wiring ---------- */
 document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{
-  $("err").textContent=""; screen(D.screen[b.dataset.p], b.textContent, b.dataset.p);});
+  $("err").textContent=""; runScreen(D.screen[b.dataset.p], b.textContent, b.dataset.p);});
 const drop=$("drop"), file=document.createElement("input");
 file.type="file"; file.accept=".csv"; file.hidden=true; document.body.appendChild(file);
-const load=f=>f.text().then(t=>{try{$("err").textContent="";screen(fromCSV(t),f.name,null);}
+const load=f=>f.text().then(t=>{try{$("err").textContent="";runScreen(fromCSV(t),f.name,null);}
   catch(e){$("err").textContent="Could not read that file: "+e.message;}});
 drop.onclick=()=>file.click();
 drop.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();file.click();}};
@@ -456,7 +472,77 @@ drop.ondragleave=()=>drop.classList.remove("over");
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove("over");const f=e.dataTransfer.files[0];if(f)load(f);};
 file.onchange=()=>{const f=file.files[0];if(f)load(f);};
 const GO={2:evalStage,3:diagnose,4:intervene,5:result};
-document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>GO[b.dataset.go]());
+const LOG={
+ 2:["reading 200 episodes, 9,700 frames",
+    "restoring the fine-tune, 1,000 steps",
+    "rolling out 100 scenes on paired seeds",
+    "scoring reach, grasp, lift and place"],
+ 3:["counting how far each of the 100 rollouts got",
+    "chaining the four steps into conditional rates",
+    "putting Wilson intervals on each rate",
+    "ranking the steps by what fixing them is worth"],
+ 4:["loading the chunk-size sweep, four settings",
+    "loading the curated and random arms",
+    "checking both arms trained on the same budget"],
+ 5:["pairing the two arms on 20 shared seeds",
+    "bootstrapping the difference, 10,000 resamples",
+    "checking how many scenes each arm wins"]};
+const REDUCED=matchMedia("(prefers-reduced-motion:reduce)").matches;
+const sleep=ms=>REDUCED?Promise.resolve():new Promise(r=>setTimeout(r,ms));
+let busy=false, token=0;
+
+async function runStage(n){
+  if(busy) return; busy=true;
+  const tk=token, st=$("s"+n), lines=LOG[n];
+  const w=document.createElement("div"); w.className="work";
+  w.innerHTML=`<div class="wtop"><span class="wlab">replaying measured run</span>
+      <span>${cur.label}</span><span class="wpct">0%</span></div>
+    <div class="wbar"><i></i></div><div class="wlog"></div>`;
+  st.classList.add("running","vis"); st.querySelector(".sh").after(w);
+  setRail(n); st.scrollIntoView({behavior:REDUCED?"auto":"smooth",block:"start"});
+  const bar=w.querySelector(".wbar i"), pct=w.querySelector(".wpct"), log=w.querySelector(".wlog");
+  for(let i=0;i<lines.length;i++){
+    const prev=log.lastElementChild; if(prev){prev.classList.remove("cur");prev.classList.add("dn");}
+    const d=document.createElement("div"); d.className="cur"; d.textContent=lines[i]; log.appendChild(d);
+    await sleep(330+Math.round(i*70));
+    if(tk!==token){w.remove(); st.classList.remove("running"); return;}
+    const p=Math.round((i+1)/lines.length*100);
+    bar.style.width=p+"%"; pct.textContent=p+"%";
+  }
+  log.lastElementChild.classList.remove("cur"); log.lastElementChild.classList.add("dn");
+  await sleep(240);
+  GO[n]();
+  st.classList.remove("running"); w.remove(); busy=false;
+}
+document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>runStage(+b.dataset.go));
+
+async function runScreen(eps,label,key){
+  const tk=++token; busy=true;
+  document.querySelectorAll(".work").forEach(w=>w.remove());
+  ["s1","s2","s3","s4","s5"].forEach(i=>$(i).classList.remove("vis","running"));
+  const st=$("s1");
+  const lines=[`reading ${eps.length} episodes`,
+               "measuring path, jerk and grip timing per episode",
+               "comparing all six against the thresholds"];
+  const w=document.createElement("div"); w.className="work";
+  w.innerHTML=`<div class="wtop"><span class="wlab">computing in your browser</span>
+      <span>${label}</span><span class="wpct">0%</span></div>
+    <div class="wbar"><i></i></div><div class="wlog"></div>`;
+  st.classList.add("running","vis"); st.querySelector(".sh").after(w);
+  setRail(1); st.scrollIntoView({behavior:REDUCED?"auto":"smooth",block:"start"});
+  const bar=w.querySelector(".wbar i"), pct=w.querySelector(".wpct"), log=w.querySelector(".wlog");
+  for(let i=0;i<lines.length;i++){
+    const prev=log.lastElementChild; if(prev){prev.classList.remove("cur");prev.classList.add("dn");}
+    const d=document.createElement("div"); d.className="cur"; d.textContent=lines[i]; log.appendChild(d);
+    await sleep(300+i*60);
+    if(tk!==token){w.remove(); st.classList.remove("running"); return;}
+    const p=Math.round((i+1)/lines.length*100); bar.style.width=p+"%"; pct.textContent=p+"%";
+  }
+  log.lastElementChild.classList.remove("cur"); log.lastElementChild.classList.add("dn");
+  await sleep(220);
+  screen(eps,label,key);
+  st.classList.remove("running"); w.remove(); busy=false;
+}
 $("again").onclick=()=>{["s1","s2","s3","s4","s5"].forEach(i=>$(i).classList.remove("vis"));
   setRail(0); $("pick").scrollIntoView({behavior:"smooth",block:"start"});};
 
